@@ -1,0 +1,119 @@
+# Perfil de dispositivo FrigoController
+# ----------------------------------------------------------------------------
+# Mapa de registros data-driven: el firmware lee este perfil desde NVS/OTA.
+# Agregar un controlador nuevo (XR02/XR03, Eliwell IDPlus, Full Gauge MT-530)
+# = agregar un archivo como este. NO se recompila el firmware.
+#
+# Todo valor con "verify: true" es provisorio y debe cerrarse con el
+# procedimiento de docs/03-modbus-xr06.md §5 antes de liberar a produccion.
+
+profile:
+  id: copeland-dixell-xr06cx
+  name: "Copeland / Dixell XR06CX"
+  firmware_tested: "PENDIENTE — completar con la version del XR06 del banco"
+  physical_layer: xj485            # xj485 | ttl_direct | none(degradado)
+
+serial:
+  # El firmware autodetecta probando esta lista en orden y persiste la que responde.
+  candidates:
+    - { baud: 9600,  databits: 8, parity: none, stopbits: 2 }   # default esperado
+    - { baud: 9600,  databits: 8, parity: even, stopbits: 1 }
+    - { baud: 19200, databits: 8, parity: none, stopbits: 2 }
+  slave_address: 1                 # parametro de direccion del XR06
+  timeout_ms: 300
+  inter_frame_delay_ms: 10
+  retries: 2
+
+poll_groups:
+  - { name: status,    period_ms: 1000, points: [temp_p1, temp_p2, status_word] }
+  - { name: setpoint,  period_ms: 10000, points: [setpoint] }
+  - { name: params,    period_ms: 300000, points: [hysteresis, sp_min, sp_max,
+                                                   alarm_high, alarm_low, alarm_delay,
+                                                   defrost_interval, defrost_max,
+                                                   door_alarm_delay] }
+
+points:
+  temp_p1:
+    label: "Temperatura de regulacion"
+    fn: 0x04            # read input registers
+    addr: 0x0000
+    type: int16
+    scale: 0.1
+    unit: degC
+    verify: true
+  temp_p2:
+    label: "Temperatura de evaporador"
+    fn: 0x04
+    addr: 0x0001
+    type: int16
+    scale: 0.1
+    unit: degC
+    optional: true      # ausente si P2P = n
+    verify: true
+  status_word:
+    label: "Palabra de estado y flags"
+    fn: 0x04
+    addr: 0x0010
+    type: bitfield16
+    verify: true
+    bits:               # TODOS los indices son provisorios
+      0:  relay_compressor
+      1:  relay_defrost
+      2:  relay_fans
+      3:  relay_light
+      4:  defrost_active
+      5:  drip_phase
+      6:  fan_delay
+      7:  standby
+      8:  alarm_temp_high      # AH1
+      9:  alarm_temp_low       # AL1
+      10: alarm_probe_p1       # P1
+      11: alarm_probe_p2       # P2
+      12: alarm_door_open
+      13: alarm_external
+  setpoint:
+    label: "Consigna SET"
+    fn_read: 0x03
+    fn_write: 0x06
+    addr: 0x0100
+    type: int16
+    scale: 0.1
+    unit: degC
+    writable: true
+    clamp_to: [sp_min, sp_max]      # recorte duro a los limites del propio XR06
+    write_policy: eeprom_guard      # ver §3.4 del doc 03
+    verify: true
+  hysteresis:        { label: "Hy",  fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  sp_min:            { label: "LS",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  sp_max:            { label: "US",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_high:        { label: "ALU", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_low:         { label: "ALL", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_delay:       { label: "ALd", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+  defrost_interval:  { label: "idF", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: h,   verify: true }
+  defrost_max:       { label: "MdF", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+  door_alarm_delay:  { label: "dOA", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+
+commands:
+  standby:
+    label: "ON/OFF remoto (stand-by)"
+    primary:   { fn: 0x05, addr: null, verify: true }        # camino A: Modbus
+    fallback:  { type: relay, channel: 1, logic: nc_safe }   # camino B: rele -> entrada digital del XR06
+    readback:  { point: status_word, bit: standby, timeout_s: 10 }
+    on_mismatch: alarm_cmd_fail
+  force_defrost:
+    label: "Forzar deshielo"
+    primary: { fn: 0x05, addr: null, verify: true }
+    rate_limit: { max: 1, per_minutes: 30 }
+  ack_alarm:
+    label: "Silenciar alarma del controlador"
+    primary: { fn: 0x05, addr: null, verify: true }
+
+# Modo degradado: lo que sigue funcionando si el Modbus no esta disponible
+# (controlador viejo, sin XJ485, o puerto serie en falla).
+degraded_mode:
+  temperature_source: own_sensor
+  humidity_source: own_sensor
+  compressor_state: current_transformer
+  door_state: digital_input_1
+  onoff_control: relay_1
+  xr06_alarm_contact: digital_input_4
