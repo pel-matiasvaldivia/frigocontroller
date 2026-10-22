@@ -1,51 +1,79 @@
-# 07 — BOM y costeo (rev. 2)
+# 07 — BOM y costeo (rev. 3)
 
-> Valores de referencia en **USD, octubre 2026**, para estimación de viabilidad; requieren
-> cotización firme. El historial de recortes está en
-> [09-optimizacion-de-costos.md](09-optimizacion-de-costos.md).
+> Valores de referencia en **USD, octubre 2026**. Rev. 3 = camino A (envolvente no invasiva
+> del XR06CX), según [doc 10](10-hallazgos-manual-xr06cx.md).
 
-## 1. BOM del FC-E (equipo base: Wi-Fi, TTL directo al XR06, 1 relé, 2 DI)
+## 1. BOM del FC-A (equipo base: Wi-Fi, 3 detecciones de CA, 2 NTC, 1 relé de corte, 2 DI)
 
 | # | Componente | Ref. sugerida | Cant. | @100 u | @500 u | @2000 u |
 |---|---|---|---|---|---|---|
 | 1 | Módulo MCU + Wi-Fi | ESP32-C3-MINI-1U-N4 | 1 | 2.20 | 1.90 | 1.65 |
-| 2 | Aislador digital + DC/DC aislado 1 W | ADuM1201 + B0505S-1W | 1 | 2.70 | 2.25 | 1.85 |
-| 3 | Cable TTL armado al XR06 (1 m, conector) | — | 1 | 1.80 | 1.45 | 1.15 |
-| 4 | Fuente AC/DC 3 W | HLK-PM05 | 1 | 2.40 | 2.00 | 1.70 |
-| 5 | Buck 3V3 | MP2451 + L | 1 | 0.40 | 0.32 | 0.26 |
-| 6 | Relé SPDT 16 A | Hongfa HF115F-I | 1 | 1.30 | 1.10 | 0.90 |
-| 7 | Driver de relé + snubber RC + MOV | — | 1 | 0.45 | 0.38 | 0.30 |
-| 8 | Entradas digitales opto | 2 × PC817 + R/C | 2 | 0.35 | 0.28 | 0.22 |
-| 9 | RTC + respaldo | PCF85063A + supercap 0.47 F | 1 | 1.00 | 0.82 | 0.68 |
-| 10 | Protecciones | MOV, fusible, TVS, PTC | — | 1.10 | 0.90 | 0.72 |
-| 11 | Borneras a tornillo | 5.08 mm (6 p) + 3.5 mm (8 p) | — | 1.50 | 1.20 | 0.95 |
-| 12 | Gabinete DIN 4M genérico + etiqueta impresa | — | 1 | 2.60 | 2.10 | 1.70 |
-| 13 | Antena + pigtail | Whip 2 dBi + IPEX-SMA | 1 | 1.40 | 1.10 | 0.90 |
-| 14 | LED RGB, buzzer, pulsador | — | — | 0.95 | 0.78 | 0.62 |
-| 15 | PCB 2 capas, 75 × 55 mm | HASL | 1 | 1.30 | 0.85 | 0.55 |
-| 16 | Pasivos, conector de sonda opcional, misc. | — | — | 1.60 | 1.30 | 1.05 |
-| | **Subtotal materiales** | | | **23.05** | **18.73** | **15.20** |
+| 2 | **Detección de salidas del XR06** | 3 × H11AA1 + 6 × 100 kΩ ½ W + RC | 3 | 1.35 | 1.10 | 0.88 |
+| 3 | **ADC de precisión** | ADS1115 + ref. 0,1 % | 1 | 1.05 | 0.85 | 0.68 |
+| 4 | **Sonda de cámara armada** | NTC 10 k B3435, cápsula IP67, 3 m FEP, soporte | 1 | 3.90 | 3.20 | 2.60 |
+| 5 | Fuente AC/DC 3 W | HLK-PM05 | 1 | 2.40 | 2.00 | 1.70 |
+| 6 | Buck 3V3 | MP2451 + L | 1 | 0.40 | 0.32 | 0.26 |
+| 7 | Relé de corte SPDT 8 A | Hongfa HF32F / HF115F | 1 | 1.30 | 1.10 | 0.90 |
+| 8 | Driver de relé + snubber RC + MOV | — | 1 | 0.45 | 0.38 | 0.30 |
+| 9 | Entradas digitales opto | 2 × PC817 + R/C | 2 | 0.35 | 0.28 | 0.22 |
+| 10 | RTC + respaldo | PCF85063A + supercap 0.47 F | 1 | 1.00 | 0.82 | 0.68 |
+| 11 | Protecciones | MOV, fusible, TVS, PTC | — | 1.10 | 0.90 | 0.72 |
+| 12 | Borneras a tornillo | 5.08 mm (8 p) + 3.5 mm (10 p) | — | 1.50 | 1.20 | 0.95 |
+| 13 | Gabinete DIN 4M genérico + etiqueta impresa | — | 1 | 2.60 | 2.10 | 1.70 |
+| 14 | Antena + pigtail | Whip 2 dBi + IPEX-SMA | 1 | 1.40 | 1.10 | 0.90 |
+| 15 | LED RGB, buzzer, pulsador | — | — | 0.95 | 0.78 | 0.62 |
+| 16 | PCB 2 capas, 80 × 60 mm | HASL | 1 | 1.40 | 0.90 | 0.58 |
+| 17 | Pasivos, conectores, misc. | — | — | 1.60 | 1.30 | 1.05 |
+| | **Subtotal materiales** | | | **24.95** | **20.23** | **16.39** |
 | | Ensamblado + test funcional (EMS) | | | 8.00 | 5.50 | 3.80 |
-| | Merma y scrap (3 %) | | | 0.69 | 0.56 | 0.46 |
-| | **Costo total por equipo** | | | **≈ 31.74** | **≈ 24.79** | **≈ 19.46** |
+| | Merma y scrap (3 %) | | | 0.75 | 0.61 | 0.49 |
+| | **Costo total por equipo** | | | **≈ 33.70** | **≈ 26.34** | **≈ 20.68** |
 
-**Sin módulo externo:** el costo instalado por punto es el costo del equipo. En la rev. 1
-había que sumarle el XJ485 (USD 35-55).
+**Sin módulos externos.** El costo instalado por punto es el costo del equipo: no hay XJ485
+(USD 35-55) ni ningún accesorio obligatorio de comunicación, porque no hay comunicación.
+
+### Comparación de las tres revisiones
+
+| | Rev. 1 (XJ485) | Rev. 2 (TTL directo) | **Rev. 3 (envolvente)** |
+|---|---|---|---|
+| Equipo @500 u. | 63.88 | 24.79 | **26.34** |
+| Interfaz obligatoria | +45.00 | 0 | 0 |
+| **Costo instalado** | **108.88** | **24.79** | **26.34** |
+| **¿Funciona sobre un XR06CX?** | **No** | **No** | **Sí** |
+
+La rev. 3 cuesta USD 1.55 más que la rev. 2 y es la única de las tres que se puede instalar.
+Lo que se agregó (sonda, ADC y detección de salidas: +5.43) casi se compensó con lo que se
+eliminó al no haber bus serie (aislador, DC/DC aislado y cable TTL: −3.70).
 
 ## 2. Poblaciones y accesorios (misma PCB)
 
 | SKU | Qué agrega | Δ BOM @500 | Cuándo se cotiza |
 |---|---|---|---|
-| **FC-E** | Base: TTL directo | — | Instalación estándar sobre XR06 |
-| **FC-R** | SP3485 + bornera A/B en lugar del cable TTL (usa XJ485 o bus RS-485 existente) | +0.90 (y el cliente aporta/compra el XJ485) | Cliente que exige soporte oficial, bus ya existente, u otros combistatos |
-| **+HR** | Sonda T/HR remota SHT45, cápsula IP67, filtro PTFE, 3 m FEP, soporte | +7.80 | Cámaras de frescos, maduración o con auditoría de humedad |
-| **+CT** | Clamp 10 A + acondicionamiento | +2.60 | Clientes con mantenimiento predictivo de compresores |
-| **+2R** | 2º relé (sirena/baliza/luz) | +1.48 | Cuando se pide aviso sonoro local externo |
-| **IP65** | Caja IP65 130×80×70 + prensacables + antena puck | +9.50 | Montaje a la vista, zonas de lavado |
+| **FC-A** | Base: envolvente del XR06CX | — | Instalación estándar, sin tocar el controlador |
+| **FC-R** | SP3485 + bornera A/B (ModBUS nativo) | +0.90 | **Camino B:** controlador nuevo con RS-485, u otros combistatos (Full Gauge, Carel, Eliwell, Dixell XW) |
+| **+P2** | Segunda sonda NTC de evaporador | +3.20 | Habilita alarma de deshielo inefectivo y detección de `P2` en falla |
+| **+HR** | Sonda T/HR SHT45 (cápsula IP67, filtro PTFE, 3 m FEP) | +7.80 | **Única forma de cubrir humedad.** Frescos, maduración, auditoría de HR |
+| **+CT** | Clamp 10 A + acondicionamiento | +2.60 | Confirmación física de marcha y consumo del compresor |
+| **+2R** | 2º relé (sirena/baliza) | +1.48 | Aviso sonoro externo |
+| **IP65** | Caja IP65 + prensacables + antena puck | +9.50 | Zonas de lavado, montaje a la vista |
 | **LTE** | SIM7670G + antena + SIM | +28.00 | Sitio sin Wi-Fi confiable |
-| **DC-in** | Entrada 12-24 VDC en lugar de AC/DC | **−1.70** | Tablero que ya tiene fuente: **más barato que el base** |
 
-## 3. Costo de la nube (sin cambios)
+## 3. Camino B: costo de reemplazar el controlador
+
+Para el cliente que exija **setup de temperatura remoto**, que el XR06CX no puede dar:
+
+| Concepto | USD |
+|---|---|
+| Gateway FC-R @500 u. | 24.20 |
+| Controlador con RS-485 ModBUS nativo (Full Gauge MT-530 Super / TC-900, Dixell XW, Carel IR33, Eliwell) | 60–120 |
+| Mano de obra de reemplazo y re-cableado (1–2 h, con corte de servicio) | 50–90 |
+| **Total instalado por cámara** | **134–234** |
+
+Se cotiza **por cámara**, no por sitio: lo habitual es que el cliente quiera consigna remota
+en dos o tres cámaras críticas y monitoreo en el resto. El producto soporta las dos cosas en
+el mismo tablero y en la misma app.
+
+## 4. Costo de la nube (sin cambios)
 
 | Concepto | @100 equipos | @1000 equipos |
 |---|---|---|
@@ -55,28 +83,30 @@ había que sumarle el XJ485 (USD 35-55).
 | Monitoreo y backups | 25 /mes | 70 /mes |
 | **Por equipo** | **≈ 1.5–2.4 /mes** | **≈ 0.6–1.0 /mes** |
 
-Eliminar los sensores propios **reduce** además el volumen de telemetría ~35 % (menos
-campos por muestra), con efecto menor pero real en el costo de la base de series.
+## 5. Modelo de precio (rev. 3)
 
-## 4. Modelo de precio (rev. 2)
-
-| | Equipo (una vez) | Abono mensual por equipo |
+| | Equipo (una vez) | Abono mensual |
 |---|---|---|
-| FC-E Wi-Fi (base) | **USD 95–130** | USD 6–8 |
-| FC-R (con XJ485 del cliente) | USD 105–140 | USD 6–8 |
+| **FC-A** Wi-Fi (monitoreo + ON/OFF remoto) | **USD 105–140** | USD 6–8 |
+| + sonda de evaporador | + USD 20–28 | — |
 | + sonda T/HR | + USD 45–60 | — |
 | + CT de compresor | + USD 25–35 | — |
 | IP65 | + USD 30–40 | — |
-| LTE | + USD 70–90 | USD 11–14 (incluye datos) |
-| Instalación y puesta en marcha | USD 60–110 | — |
+| LTE | + USD 70–90 | USD 11–14 |
+| **Upgrade "control total"** (FC-R + controlador con ModBUS + instalación) | **USD 290–390** | USD 8–10 |
+| Instalación y puesta en marcha FC-A | USD 60–110 | — |
 
-Margen bruto de hardware **70–78 %** a 500 u. (mejor que la rev. 1 pese al precio más bajo,
-porque el costo cayó más que el precio); margen del abono > 85 %.
+Margen bruto de hardware **72–78 %** a 500 u.; margen del abono > 85 %.
 
-**El precio bajo es una decisión estratégica, no solo un ahorro.** A USD 110 el punto, el
-equipo entra por decisión del encargado de mantenimiento; a USD 280 necesita aprobación de
-gerencia y compite con un presupuesto anual. Un parque de 8 cámaras pasa de USD 2 240 a
-USD 880: la diferencia entre "lo evaluamos el año que viene" y "pongamos las ocho".
+**El catálogo de dos niveles es el mejor resultado comercial de este replanteo.** En lugar de
+prometer una función que el controlador del cliente no puede dar, hay:
+
+- **Nivel 1 (FC-A, USD 105-140):** monitoreo completo, alarmas, deshielo, compresor, puerta y
+  ON/OFF remoto, **sin tocar el controlador ni cortar el servicio**. Entra por decisión del
+  encargado de mantenimiento, se instala en 15 minutos.
+- **Nivel 2 (upgrade, USD 290-390):** agrega consigna remota reemplazando el controlador. Se
+  vende solo donde se necesita, y la objeción de precio se resuelve sola porque el cliente ya
+  tiene el nivel 1 funcionando y pide el upgrade donde le hace falta.
 
 Y el argumento de valor no cambia: una cámara de congelados llena vale USD 15 000–40 000 en
-mercadería. Ahora **una sola pérdida evitada paga 120-400 equipos.**
+mercadería. **Una sola pérdida evitada paga más de 100 equipos del nivel 1.**

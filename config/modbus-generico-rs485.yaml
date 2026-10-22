@@ -1,17 +1,25 @@
-# Perfil de dispositivo FrigoController
+# Perfil de dispositivo FrigoController — CAMINO B (ModBUS RS-485)
 # ----------------------------------------------------------------------------
-# Mapa de registros data-driven: el firmware lee este perfil desde NVS/OTA.
-# Agregar un controlador nuevo (XR02/XR03, Eliwell IDPlus, Full Gauge MT-530)
-# = agregar un archivo como este. NO se recompila el firmware.
+# ATENCION: el Copeland/Dixell XR06CX NO soporta ModBUS (no tiene puerto serie
+# de proceso ni parametro de direccion de esclavo). Ver docs/10 §1.
+# Para ese controlador se usa config/perfil-xr06cx-envolvente.yaml.
 #
-# Todo valor con "verify: true" es provisorio y debe cerrarse con el
-# procedimiento de docs/03-modbus-xr06.md §5 antes de liberar a produccion.
+# Este perfil es la PLANTILLA del camino B: controladores con RS-485 ModBUS
+# nativo (Full Gauge MT-530/TC-900, Dixell XW, Carel IR33, Eliwell), ya sea
+# porque el cliente los tiene o porque se reemplaza el XR06CX para habilitar
+# consigna remota. Agregar un controlador = agregar un archivo como este;
+# NO se recompila el firmware.
+#
+# Todo valor con "verify: true" debe cerrarse contra el manual del controlador
+# concreto y el banco (procedimiento de docs/03 §5) antes de produccion.
 
 profile:
-  id: copeland-dixell-xr06cx
-  name: "Copeland / Dixell XR06CX"
-  firmware_tested: "PENDIENTE — completar con la version del XR06 del banco"
-  physical_layer: ttl_direct       # ttl_direct (FC-E, linea base) | xj485 (FC-R) | none (degradado)
+  id: plantilla-modbus-rs485
+  name: "Plantilla ModBUS RTU (camino B)"
+  strategy: modbus
+  controller_model: "PENDIENTE — completar con el controlador elegido"
+  firmware_tested: "PENDIENTE"
+  physical_layer: rs485            # poblacion FC-R
 
 serial:
   # El firmware autodetecta probando esta lista en orden y persiste la que responde.
@@ -95,15 +103,15 @@ points:
     clamp_to: [sp_min, sp_max]      # recorte duro a los limites del propio XR06
     write_policy: eeprom_guard      # ver §3.4 del doc 03
     verify: true
-  hysteresis:        { label: "Hy",  fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
-  sp_min:            { label: "LS",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
-  sp_max:            { label: "US",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
-  alarm_high:        { label: "ALU", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
-  alarm_low:         { label: "ALL", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
-  alarm_delay:       { label: "ALd", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
-  defrost_interval:  { label: "idF", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: h,   verify: true }
-  defrost_max:       { label: "MdF", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
-  door_alarm_delay:  { label: "dOA", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+  hysteresis:        { label: "Hy — diferencial",  fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  sp_min:            { label: "LS — set point minimo",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  sp_max:            { label: "uS — set point maximo",  fn_read: 0x03, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_high:        { label: "AU — alarma de maxima", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_low:         { label: "AL — alarma de minima", fn_read: 0x03, fn_write: 0x06, addr: null, type: int16, scale: 0.1, unit: degC, verify: true }
+  alarm_delay:       { label: "Ad — retardo de alarma", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+  defrost_interval:  { label: "id — intervalo entre deshielos", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: h,   verify: true }
+  defrost_max:       { label: "Md — duracion maxima de deshielo", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
+  door_alarm_delay:  { label: "di — retardo de alarma de entrada digital", fn_read: 0x03, fn_write: 0x06, addr: null, type: uint16, scale: 1, unit: min, verify: true }
 
 commands:
   standby:
@@ -146,7 +154,8 @@ accessories:
     present: false        # sonda de producto
     bus: onewire
 
-# Modo degradado: controlador sin puerto serie, o enlace en falla permanente.
+# Modo degradado: enlace en falla permanente (en el camino B el gateway tambien
+# lleva su sonda propia, justamente para no quedarse ciego).
 # ATENCION: sin Modbus el equipo NO tiene temperatura. Solo sirve para
 # instalaciones donde se acepta monitoreo por contactos, o con sonda accesorio.
 degraded_mode:

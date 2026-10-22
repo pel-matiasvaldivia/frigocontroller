@@ -1,16 +1,38 @@
-# 09 — Registro de optimización de costos (rev. 1 → rev. 2)
+# 09 — Registro de optimización de costos (rev. 1 → rev. 2 → rev. 3)
+
+> **Nota de la rev. 3.** Este registro documenta el recorte de costos pedido por el cliente,
+> que sigue vigente en su mayor parte: ESP32-C3, fuente HLK-PM05, borneras a tornillo, PCB de
+> 2 capas, gabinete genérico, RTC económico, un solo relé de serie y sin conector USB.
+>
+> Dos palancas quedaron **sin efecto** al descubrirse que el XR06CX no comunica
+> ([doc 10](10-hallazgos-manual-xr06cx.md)):
+> - **Palanca 1 (eliminar el XJ485, USD 45):** ya no es un ahorro, porque nunca hubo bus. El
+>   XJ485 no era una alternativa: era un módulo para una interfaz que este controlador no
+>   tiene.
+> - **Palanca 2 (eliminar la sonda propia, USD 10.60):** se revierte. La sonda es ahora la
+>   única fuente de temperatura y **vuelve a ser obligatoria**.
+>
+> A cambio, el camino de la envolvente trajo un ahorro propio que no estaba previsto:
+> **detectar tensión en las tres salidas de relé cuesta USD 1.10**, contra USD 7.80 que
+> costarían tres transformadores de corriente — y da la misma información de estado sin abrir
+> ningún cable.
+>
+> Costo final: **USD 26.34 @500 u.** contra USD 63.88 de la rev. 1 (−59 %), con el equipo
+> cumpliendo 7 de los 8 requerimientos sobre el controlador que el cliente ya tiene instalado.
+> El costeo completo está en [doc 07](07-bom-y-costos.md).
 
 Qué se recortó, cuánto ahorró y qué se cede. Un recorte sin su contrapartida explícita no
 es una decisión de ingeniería: es una sorpresa diferida.
 
 ## 1. Resumen
 
-| | Rev. 1 | **Rev. 2** | Δ |
+| | Rev. 1 | Rev. 2 | **Rev. 3** |
 |---|---|---|---|
-| BOM + ensamblado @500 u. | USD 63.88 | **USD 24.79** | −61 % |
-| Interfaz al XR06 (XJ485) | USD 45.00 | **USD 0** (cable TTL incluido) | −45.00 |
-| **Costo instalado por punto @500 u.** | **USD 108.88** | **USD 24.79** | **−77 %** |
-| Precio sugerido de equipo | USD 210–260 (+60–80 XJ485) | **USD 95–130** | −55 % |
+| BOM + ensamblado @500 u. | USD 63.88 | USD 24.79 | **USD 26.34** |
+| Interfaz obligatoria | USD 45.00 (XJ485) | USD 0 | **USD 0** |
+| **Costo instalado por punto @500 u.** | **USD 108.88** | **USD 24.79** | **USD 26.34** |
+| Precio sugerido de equipo | USD 210–260 (+60–80 XJ485) | USD 95–130 | **USD 105–140** |
+| **¿Instalable sobre un XR06CX?** | **No** | **No** | **Sí** |
 
 El 54 % del ahorro viene de **una sola decisión** (eliminar el XJ485), el 27 % de eliminar
 los sensores propios y el 19 % restante de 10 recortes menores en la electrónica.

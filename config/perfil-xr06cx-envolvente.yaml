@@ -1,0 +1,208 @@
+# Perfil de dispositivo FrigoController — CAMINO A (envolvente no invasiva)
+# ----------------------------------------------------------------------------
+# Para Copeland/Dixell XR06CX, que NO tiene ModBUS ni puerto serie de proceso.
+# El gateway no lee registros: mide con su propia sonda y detecta tension en
+# las tres salidas de rele del controlador.
+#
+# Nomenclatura segun el manual oficial 1594020160 XR06CX SP r1.2 (27.07.2015).
+
+profile:
+  id: copeland-dixell-xr06cx-wrapper
+  name: "Copeland / Dixell XR06CX (envolvente)"
+  strategy: physical_wrapper        # physical_wrapper | modbus (ver modbus-generico-rs485.yaml)
+  controller_has_serial: false
+
+# ---------------------------------------------------------------------------
+# 1. ENTRADAS DEL GATEWAY
+inputs:
+  ntc1:
+    label: "Temperatura de camara (sonda propia)"
+    type: ntc_10k_b3435
+    channel: ads1115.ch0
+    period_ms: 5000
+    filter: median5
+    # Offset del XR06 (parametro 'ot'): se copia del controlador en la puesta en
+    # marcha para que la app y el display muestren el mismo numero.
+    apply_offset_from: controller_params.ot
+    required: true                  # unica fuente de temperatura
+
+  ntc2:
+    label: "Temperatura de evaporador (sonda propia)"
+    type: ntc_10k_b3435
+    channel: ads1115.ch1
+    period_ms: 5000
+    apply_offset_from: controller_params.oE
+    present: false                  # SKU +P2
+
+  ac_compressor:
+    label: "Salida de compresor del XR06"
+    type: ac_voltage_detect         # H11AA1, deteccion en paralelo
+    gpio: 4
+    debounce_ms: 60                 # 3 ciclos de red
+  ac_defrost:
+    label: "Salida de deshielo del XR06"
+    type: ac_voltage_detect
+    gpio: 5
+    debounce_ms: 60
+  ac_fans:
+    label: "Salida de ventiladores del XR06"
+    type: ac_voltage_detect
+    gpio: 6
+    debounce_ms: 60
+
+  di_door:
+    label: "Fin de carrera de puerta (propio)"
+    type: dry_contact
+    gpio: 7
+    normally: open                  # NA/NC por software
+    confirm_s: 2
+  di_aux:
+    label: "Auxiliar (termico, presostato, monitor de fase)"
+    type: dry_contact
+    gpio: 8
+    normally: closed
+
+  sht45:   { label: "Sonda T/HR accesorio", bus: i2c, present: false, period_ms: 30000,
+             heater: { on_s: 10, every_min: 60 } }     # SKU +HR, unica fuente de humedad
+  ct1:     { label: "Clamp de corriente de compresor", channel: adc0, range_a: 10,
+             present: false }                           # SKU +CT
+
+# ---------------------------------------------------------------------------
+# 2. SALIDAS DEL GATEWAY
+outputs:
+  relay1:
+    label: "Corte de alimentacion del XR06 (ON/OFF remoto)"
+    gpio: 9
+    contact: nc                     # sin energia = XR06 alimentado = camara enfriando
+    min_toggle_interval_s: 300      # protege compresor y rele
+    hw_watchdog: true               # libera la compuerta si el firmware se cuelga
+  relay2:
+    label: "Sirena / baliza"
+    gpio: 10
+    present: false                  # SKU +2R
+
+# ---------------------------------------------------------------------------
+# 3. PARAMETROS DEL CONTROLADOR
+# No son legibles: se cargan a mano en la puesta en marcha leyendolos del
+# display, y quedan en el acta. La app recuerda revalidarlos cada 6 meses.
+controller_params:
+  _source: manual_entry
+  _verified_at: null
+  Pt:  null      # mapa de codigos (solo lectura)  -> identifica la variante de firmware
+  rL:  null      # version de software (solo lectura)
+  SET: null      # consigna
+  Hy:  2.0       # diferencial
+  LS:  -55.0
+  uS:  99.0
+  ot:  0.0       # calibracion sonda termostato
+  oE:  0.0       # calibracion sonda evaporador
+  P2:  'y'       # presencia de sonda de evaporador
+  od:  0         # retardo de salidas al arranque -> SE CONFIGURA EN >= 3 min al instalar
+  AC:  1         # retardo anticiclos cortos
+  Cy:  15        # compresor ON con sonda en falla
+  Cn:  30        # compresor OFF con sonda en falla
+  td:  'EL'      # EL = resistencia | in = gas caliente (el compresor corre en deshielo)
+  dE:  8.0
+  id:  6         # intervalo entre deshielos (h)
+  Md:  30        # duracion maxima de deshielo (min)
+  dt:  0         # tiempo de goteo
+  dP:  'n'       # deshielo al encendido
+  FC:  'on'      # modo de ventiladores
+  Fd:  10        # retardo de ventiladores tras deshielo
+  AU:  99.0      # alarma de maxima
+  AL:  -55.0     # alarma de minima
+  Ad:  15        # retardo de alarma de temperatura
+  dA:  90        # exclusion de alarma al encendido
+  iF:  'EA'      # config. entrada digital: EA|bA|do|dF|Au|Hc  (defecto EA, no 'do')
+  iP:  'cL'      # polaridad
+  di:  5
+  dC:  'Fc'      # con puerta abierta: compresor y ventiladores OFF
+  rd:  'y'
+
+# ---------------------------------------------------------------------------
+# 4. ESTADO DERIVADO: la maquina de estados se reconstruye de las 3 salidas
+state_machine:
+  cooling:    { ac_compressor: true,  ac_defrost: false }
+  defrost:    { ac_defrost: true }
+  drip:       { after: defrost, duration_from: controller_params.dt }
+  fan_delay:  { after: drip, duration_from: controller_params.Fd, ac_fans: false }
+  idle:       { ac_compressor: false, ac_defrost: false }
+  off:        { relay1: energized }        # gateway corto la alimentacion del XR06
+  # Con td = 'in' el compresor funciona durante el deshielo: el analisis de duty
+  # cycle y de ciclado corto excluye las ventanas de deshielo.
+
+# ---------------------------------------------------------------------------
+# 5. ALARMAS (todas calculadas por el gateway; el XR06 no las transmite)
+alarms:
+  temp_high:
+    source: ntc1
+    threshold_from: controller_params.AU
+    confirm_from: controller_params.Ad          # mismo retardo que el controlador
+    hysteresis: 1.0
+    masked_by: [defrost, door_open, startup_window]
+    severity: critical
+  temp_low:
+    source: ntc1
+    threshold_from: controller_params.AL
+    confirm_from: controller_params.Ad
+    hysteresis: 1.0
+    masked_by: [defrost, door_open, startup_window]
+    severity: critical
+  startup_window:
+    # El XR06 excluye las alarmas de temperatura por 'dA' minutos al encender:
+    # el gateway replica la misma ventana tras un corte de energia.
+    duration_from: controller_params.dA
+  door_open:
+    source: di_door
+    confirm_s: 90
+    severity: medium
+  defrost_timeout:
+    condition: "duracion de deshielo > Md * 1.2"
+    severity: medium
+  defrost_ineffective:
+    condition: "tras 3 deshielos, ntc2 no supera 0 C"
+    requires: ntc2
+    severity: medium
+  probe_fail_inferred:
+    # Firma de sonda en falla: el XR06 pasa a ciclar por tiempo (Cy/Cn) sin
+    # relacion con la temperatura. Deteccion en ~2 h con los valores por defecto.
+    condition: "periodo de ciclado ~= Cy+Cn (+-10%) durante >= 3 ciclos
+                Y los arranques no se explican por ntc1 cruzando SET+-Hy"
+    severity: critical
+    note: "No es un flag P1/P2: es inferencia. Avisar al cliente del retardo."
+  short_cycling:
+    condition: "> 10 arranques/hora, excluyendo deshielos y aperturas de puerta"
+    severity: medium
+  compressor_no_current:
+    condition: "ac_compressor = true y ct1 < 0.5 A por > 60 s"
+    requires: ct1
+    severity: critical
+  cmd_fail:
+    condition: "relay1 comandado pero el estado de las salidas no cambia en 60 s"
+    severity: high
+  own_probe_fail:
+    condition: "ntc1 fuera de -50..60 C, circuito abierto/corto, o derivada > 5 C/min"
+    severity: critical
+    note: "Sin ntc1 no hay temperatura: el equipo lo declara, no lo disimula."
+
+# ---------------------------------------------------------------------------
+# 6. LO QUE ESTE CAMINO NO PUEDE HACER (se declara, no se oculta)
+not_supported:
+  remote_setpoint:
+    reason: "El XR06CX no tiene canal de escritura en linea."
+    alternatives: [virtual_setpoint_upward, replace_controller_path_b]
+  read_controller_params:
+    reason: "Idem. Se cargan a mano y se revalidan cada 6 meses."
+  direct_probe_flags:
+    reason: "El XR06CX no tiene rele de alarma. Se usa probe_fail_inferred."
+
+virtual_setpoint_upward:
+  # Unica forma de 'subir' la consigna sin tocar el controlador: el gateway
+  # corta la alimentacion del XR06 para dejar de enfriar. NUNCA puede enfriar
+  # mas de lo que el SET del controlador permite.
+  enabled: false                 # requiere aceptacion explicita del cliente
+  max_gate_minutes: 30
+  min_on_minutes: 10
+  min_off_minutes: 5
+  release_on_alarm: true         # cualquier alarma critica libera la compuerta
+  note: "Con esto el gateway pasa a ser parte del lazo de control. Ver doc 10 §7."

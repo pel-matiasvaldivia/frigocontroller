@@ -4,19 +4,22 @@
 descarta Arduino-ESP32 para producción: se necesitan particiones OTA A/B, secure boot v2,
 flash encryption y control fino de tareas y watchdogs.
 
-> **Rev. 2:** un solo núcleo en lugar de dos. Como no se puede aislar el Modbus en un núcleo
-> propio, la garantía de tiempos pasa a las prioridades y a reglas de bloqueo explícitas
-> (§1). La carga real lo permite con holgura: 1 trama Modbus/s y un MQTT ocioso.
+> **Rev. 3:** no hay maestro ModBUS (el XR06CX no comunica). La tarea crítica pasa a ser el
+> **scan de las tres entradas de detección de CA** y de las sondas. Un solo núcleo alcanza con
+> holgura; la garantía de tiempos vive en las prioridades y en reglas de bloqueo explícitas.
+> La tarea `modbus_master` se compila solo para la población FC-R (camino B).
 
 ## 1. Tareas
 
 | Tarea | Prio | Período | Responsabilidad |
 |---|---|---|---|
-| `io_scan` | 7 | 10 ms | Muestreo de DI1/DI2, antirrebote, conteo de aperturas de puerta, RMS del CT si está presente |
-| `modbus_master` | 6 | 1 s | Polling por grupos según el perfil YAML, cola de escrituras con read-back, autodetección de velocidad, contador de errores CRC |
+| `io_scan` | 7 | 10 ms | Muestreo de las **3 entradas de detección de CA** (integración sobre 3 ciclos de red) y de DI1/DI2, antirrebote, conteo de aperturas de puerta, RMS del CT si está presente |
+| `state_rebuild` | 6 | 200 ms | Reconstruye la máquina de estados del equipo (enfriando / deshielo / goteo `dt` / retardo de ventiladores `Fd` / parado / apagado) a partir de las 3 salidas y los parámetros del controlador |
+| `sensors_ntc` | 6 | 5 s | ADS1115, linealización de NTC (Steinhart-Hart), mediana de 5, aplicación del offset `ot`/`oE`, validación de plausibilidad |
+| `modbus_master` | 6 | 1 s | **Solo población FC-R (camino B):** polling por grupos según el perfil, cola de escrituras con read-back, autodetección de velocidad |
 | `alarm_engine` | 5 | 1 s | Evaluación de reglas locales, retardos, histéresis, dedup, salida a buzzer y relé |
 | `mqtt_client` | 4 | — | Publicación, suscripción a comandos, reenvío del backlog con límite de ancho de banda |
-| `sensors` | 4 | 30 s | **Solo si hay sonda accesorio:** SHT45 por I²C (con calentador anticondensación periódico) y RTC |
+| `sensors_opt` | 4 | 30 s | **Solo si hay accesorios:** SHT45 por I²C (con calentador anticondensación periódico) y RTC |
 | `logger` | 3 | evento / 60 s | Ring buffer en flash (registro binario de 24 B), agregados de 15 min para HACCP |
 | `net_mgr` | 3 | — | Wi-Fi con backoff exponencial, SNTP, provisioning, (LTE en la variante FC-E LTE) |
 | `ota` | 2 | — | Descarga firmada, A/B, rollback automático si no reconecta a MQTT en 10 min |
@@ -24,14 +27,18 @@ flash encryption y control fino de tareas y watchdogs.
 **Reglas de tiempo real en un solo núcleo** (sustituyen al aislamiento por núcleo de la
 rev. 1):
 
-1. `io_scan` y `modbus_master` **nunca** llaman a funciones de red, de TLS ni de flash;
+1. `io_scan`, `state_rebuild` y `sensors_ntc` **nunca** llaman a funciones de red, de TLS ni
+   de flash;
    publican en colas y siguen. Todo lo que puede bloquear vive en prioridades ≤ 4.
 2. Las escrituras en flash se hacen en bloques de un sector, siempre desde `logger`, y no
    suspenden el bus de instrucciones más de 10 ms.
 3. La negociación TLS y la descarga OTA ceden explícitamente cada 20 ms (`vTaskDelay`), y
-   durante la OTA el polling Modbus baja a 5 s en lugar de suspenderse: el equipo nunca deja
-   de vigilar la cámara por estar actualizándose.
-4. Watchdog de tarea habilitado en todas, con `io_scan` como testigo: si se retrasa más de
+   durante la OTA el scan de entradas **no se suspende nunca**: el equipo no deja de vigilar
+   la cámara por estar actualizándose, y menos aún de poder liberar el relé de corte.
+4. **El relé de corte tiene watchdog de hardware propio** (temporizador retriggerable): si la
+   tarea que lo sostiene deja de refrescarlo, el relé se desenergiza y el XR06 vuelve a estar
+   alimentado. El fail-safe no depende de que el firmware se dé cuenta de que falló.
+5. Watchdog de tarea habilitado en todas, con `io_scan` como testigo: si se retrasa más de
    500 ms se registra el evento con la tarea culpable — dato de campo para ajustar
    prioridades, no solo un reinicio silencioso.
 
@@ -69,10 +76,18 @@ typedef struct {
 Reglas de higiene de notificaciones, para que la app siga siendo creíble:
 
 - **Confirmación e histéresis** en toda alarma analógica (§4 del doc 03).
-- **Fuente única de temperatura.** Al evaluar reglas sobre `temp_p1`, si el dato tiene más
-  de 10 s de antigüedad la regla **no se evalúa** y se marca el período como "sin dato" en
-  el registro. Nunca se alarma —ni se deja de alarmar— sobre una lectura vieja: con el
-  Modbus como única fuente, esto es lo que separa un aviso útil de una mentira.
+- **Fuente única de temperatura.** Al evaluar reglas sobre la sonda propia, si el dato tiene
+  más de 10 s de antigüedad la regla **no se evalúa** y el período se marca como "sin dato" en
+  el registro. Nunca se alarma —ni se deja de alarmar— sobre una lectura vieja.
+- **Umbrales heredados del controlador.** `AU`, `AL`, `Ad` y `dA` se cargan en la puesta en
+  marcha desde el display del XR06: las alarmas del gateway y las del controlador tienen que
+  disparar en el mismo momento, o el cliente ve dos criterios y deja de creerle a uno.
+- **Ventana `dA` tras un corte de energía.** El XR06 excluye las alarmas de temperatura
+  durante `dA` minutos al encender (90 por defecto). El gateway aplica la misma ventana al
+  volver la luz; sin esto, cada corte generaría una ráfaga de alarmas falsas.
+- **Exclusión de deshielos y de paradas por puerta** en el análisis de duty cycle y de
+  ciclado corto: con `td = in` el compresor funciona durante el deshielo, y con `dC = Fc` se
+  para al abrir la puerta. Ninguna de las dos es una falla.
 - **Enmascarado durante deshielo:** la alta temperatura se inhibe durante el deshielo y
   durante el tiempo de recuperación configurado (parámetro propio, por defecto `MdF` +
   30 min). Sin esto, cada deshielo genera una falsa alarma — el error clásico.
@@ -88,9 +103,8 @@ Reglas de higiene de notificaciones, para que la app siga siendo creíble:
 ## 4. Registro y almacenamiento
 
 - Partición dedicada de **1.5 MB** (flash de 4 MB en el ESP32-C3), ring buffer de registros
-  binarios de **24 B** (ts u32, temp_p1 i16, temp_p2 i16, setpoint i16, flags u16,
-  contador de puerta u16, opcionales i16×2, CRC16). Menos campos que la rev. 1 justamente
-  por haber eliminado los sensores propios.
+  binarios de **24 B** (ts u32, ntc1 i16, ntc2 i16, rh i16, flags de las 3 salidas + puerta +
+  estado u16, corriente u16, contador de puerta u16, CRC16).
 - ≈ 43 700 registros/MB → **> 45 días a 1 muestra/min** con 1.5 MB. Se especifica 30 días
   para dejar margen de desgaste de flash y de agregados.
 - Agregados de 15 min (mín/máx/promedio) en partición aparte, **retención 2 años**: es el

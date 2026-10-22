@@ -5,34 +5,39 @@ por un técnico apurado, sobre una instalación existente. El diseño industrial
 tres cosas: **que entre, que se instale en 15 minutos y que el estado se entienda sin abrir
 la app.**
 
-> **Rev. 2.** Al tomar la medición del XR06 desaparece la sonda de serie: el producto pasa a
-> ser **un solo cuerpo**, más chico, más barato de inyectar y más rápido de instalar. El
-> gabinete pasa de 6M custom a **4M genérico con etiqueta impresa**, lo que además evita
-> USD 8–15 k de herramienta de molde hasta tener volumen que la justifique.
+> **Rev. 3.** El XR06CX no comunica, así que **la sonda propia vuelve y es obligatoria**: el
+> producto son dos cuerpos (gateway en el tablero, sonda en la cámara). Se mantiene el
+> gabinete **DIN 4M genérico con etiqueta impresa** de la rev. 2, que evita USD 8–15 k de
+> herramienta de molde hasta tener volumen que la justifique. Desaparece el cable TTL (no hay
+> puerto serie) y aparecen **tres hilos de detección de salidas**, que es el cableado nuevo
+> del instalador.
 
 ## 1. Arquitectura de producto
 
 ```
-  ┌────────────────────────────┐
-  │  FRIGOCONTROLLER FC-E      │   cable TTL 1 m ──▶ puerto TTL del XR06
-  │  riel DIN 4M (71×90×58)    │   (va dentro del mismo tablero)
-  │                            │
-  │  ◦ conector de sonda ──────┼─ ─ ─ ▶ [ SONDA T/HR ACCESORIO, solo si se cotiza ]
+  ┌────────────────────────────┐  3 hilos ──▶ salidas de relé del XR06 (en el mismo tablero)
+  │  FRIGOCONTROLLER FC-A      │  1 hilo  ──▶ relé NC en serie con los 230 V del XR06
+  │  riel DIN 4M (71×90×58)    │
+  │                            │  cable 3 m FEP
+  │  ◦ NTC1 cámara ────────────┼──────────────▶ [ SONDA DE CÁMARA — obligatoria ]
+  │  ◦ NTC2 evaporador ────────┼─ ─ ─ ─ ─ ─ ─ ▶ [ opcional, SKU +P2 ]
+  │  ◦ conector T/HR ──────────┼─ ─ ─ ─ ─ ─ ─ ▶ [ SONDA T/HR, SKU +HR ]
   └────────────────────────────┘
 ```
 
-Un solo cuerpo, dentro del tablero, al lado del controlador que supervisa. Es el formato más
-barato y el que menos tiempo de instalación consume: no hay nada que amurar ni cable que
-tender hacia la cámara, salvo que se pida la sonda de humedad.
+El gateway va en el tablero, junto al controlador que supervisa (el XR06 exige 0÷60 °C de
+ambiente, así que nunca va dentro de la cámara). La medición necesita estar donde está el
+producto: de ahí los dos cuerpos.
 
 ## 2. FC-E (riel DIN) — formato base
 
 | | |
 |---|---|
 | Formato | Caja modular DIN **4M, 71 × 90 × 58 mm**, genérica de catálogo (sin molde propio) |
+| Vecino de riel | Va al lado del XR06CX, que es de montaje en panel 71×29 mm con frontal IP65 (§9 y §13 de su manual): el controlador queda en la puerta del tablero, el gateway en el riel de atrás |
 | Material | Policarbonato V-0, gris RAL 7035 (gris estándar de tablero) |
 | Protección | IP20 (va dentro del tablero) |
-| Borneras | A tornillo. Inferior: red + relé, paso **5.08 mm**. Superior: señales (TTL/RS-485, DI, sonda), paso **3.5 mm** |
+| Borneras | A tornillo. Inferior: red, relé de corte y **3 entradas de detección de salidas** (todas a potencial de red), paso **5.08 mm**. Superior: señales (NTC, DI, sonda T/HR), paso **3.5 mm**. **Separación física y rotulado inequívoco entre los dos grupos**: una bornera de red y una de sonda a 10 mm de distancia es un accidente esperando |
 | Frente | Ventana difusora de LED RGB + pulsador recesado + **etiqueta impresa de policarbonato** con logotipo, modelo, serie, QR y leyenda de LED |
 | Antena | SMA hembra en el lateral superior, whip 2 dBi rebatible |
 | Servicio | Pads de test internos; sin conector USB (se flashea en cama de agujas en producción) |
@@ -73,8 +78,8 @@ en la etiqueta del frente:
 | Verde latido lento | Normal, trabajando offline (registrando en memoria) |
 | Celeste pulsante | En deshielo |
 | Azul intermitente rápido | Modo configuración / SoftAP esperando aparear |
-| **Ámbar intermitente** | **Sin comunicación con el controlador** (en rev. 2 es la falla que deja al equipo ciego: tiene su propio color y es lo primero que mira el técnico) |
-| Rojo intermitente + buzzer | Alarma crítica activa (alta/baja temperatura, falla de sonda del XR06) |
+| **Ámbar intermitente** | **Sonda propia en falla** (el equipo quedó ciego a la temperatura) o detección de salidas sin señal cuando debería haberla: es lo primero que mira el técnico |
+| Rojo intermitente + buzzer | Alarma crítica activa (alta/baja temperatura, falla de sonda inferida, compresor sin corriente) |
 | Rojo fijo | Falla interna del equipo |
 | Blanco 1 destello | Comando recibido y aplicado |
 
@@ -91,29 +96,46 @@ producto. El segundo relé (opción **+2R**) replica la alarma para sirena o bal
 | 10 s + confirmación con doble pulsación | Restablecer a fábrica |
 
 Un solo control físico, sin menús: toda la configuración vive en la app. El dispositivo no
-compite con el display del XR06, que sigue siendo la interfaz local de control — y que ahora
-**muestra el mismo número que la app**, porque es la misma sonda.
+compite con el display del XR06, que sigue siendo la interfaz local de control. Como son dos
+sondas distintas, **el asistente de instalación obliga a comparar los dos números y a cargar
+el offset `ot` del controlador** para que coincidan: es el paso que evita el llamado a
+soporte "la app me marca distinto que el equipo".
 
-## 6. Cable TTL al XR06 — ahora es una pieza de producto
+## 6. Las tres tomas de detección — la pieza nueva de la instalación
 
-Al eliminar el XJ485, este cable deja de ser un accesorio de tercero y pasa a ser una pieza
-con especificación propia. Es la única conexión de la que depende todo el dato de proceso:
+En lugar de un cable de comunicación hay **tres hilos que se derivan de las salidas de relé
+del XR06**. Es cableado de red de 230 V, y el diseño industrial tiene que hacerlo imposible
+de equivocar:
 
-- Largo **1 m**, suficiente para dos equipos contiguos en el mismo riel; versión de 2 m para
-  tableros profundos.
-- **4 conductores + malla**, AWG 26, con malla aterrada **solo del lado del gateway**.
-- Conector al XR06 **con retención mecánica y asimetría que impide invertirlo**. Un cable
-  que se puede enchufar al revés se va a enchufar al revés.
-- Serie de 100 Ω y clamp integrados **en la PCB del gateway**, no en el cable: el cable es
-  pasivo, barato y reemplazable, y la protección del controlador nunca viaja en la pieza que
-  se pierde.
-- Rotulado en ambos extremos (`XR06 TTL` / `FC-E UART`) y color distintivo (blanco), para
-  que nadie lo confunda con un cable de potencia en una canaleta gris.
+- **Kit de derivación pre-armado:** 3 cables de 60 cm, 0,75 mm², con **punta pre-pelada y
+  terminal tipo horquilla** para entrar en la misma bornera del XR06 donde ya está el cable
+  del contactor, sin cortar ni empalmar nada.
+- **Colores fijos y rotulados**, repetidos en la bornera del gateway, en la etiqueta de la
+  tapa y en la guía rápida: **marrón = compresor · azul = deshielo · negro = ventiladores**.
+- **Imposible invertir con daño:** las tres entradas son eléctricamente idénticas y
+  bidireccionales (opto de CA), así que un cruce entre ellas no rompe nada — solo muestra el
+  estado equivocado, y el asistente de instalación lo detecta pidiendo un deshielo manual con
+  la tecla del XR06 y verificando que se encienda el canal correcto. **Un error de cableado
+  que se detecta en la puesta en marcha, en lugar de uno que se descubre en la primera
+  alarma falsa.**
+- La protección (resistencias de 1/2 W, opto de 4 kV, creepage de 5,5 mm) vive **en la PCB**,
+  no en el kit: el cable es pasivo, barato y reemplazable.
+- **Se deriva en paralelo, nunca en serie.** Está en la guía rápida en negrita: el gateway
+  observa, no interrumpe. Si el gateway se quema, el contactor sigue funcionando.
 
-## 7. Sonda T/HR — accesorio (SKU +HR)
+## 7. Sondas
 
-Solo se instala donde la humedad importa (frescos, maduración, auditoría de HR). Cuando se
-cotiza, la especificación es la de la rev. 1:
+**NTC1 de cámara — obligatoria.** NTC 10 k B3435, el mismo tipo que usa el XR06 (−40÷110 °C,
+§13 de su manual), en cápsula IP67 de Ø 16 × 70 mm, cable 3 m FEP. Dos indicaciones tomadas
+del manual del controlador y que valen igual para la nuestra: **montar el bulbo hacia arriba**
+para que una filtración de líquido no entre por el cable (§10.1), y **alejarla de los flujos
+de aire** para medir la temperatura promedio de la cámara y no la del chorro del evaporador.
+
+**NTC2 de evaporador — opcional (SKU +P2).** Misma sonda, cable de 1,5 m, sujeta al
+evaporador. Habilita la alarma de deshielo inefectivo y la detección de `P2` en falla.
+
+**Sonda T/HR — accesorio (SKU +HR).** Única forma de cubrir humedad, porque el XR06 no la
+mide. Especificación:
 
 ```
       ┌──────────────┐
@@ -130,6 +152,9 @@ cotiza, la especificación es la de la rev. 1:
   lejos de la puerta y fuera del chorro directo del evaporador**.
 - Conector **M12 de 4 p**, para cambiar la sonda sin bajar el equipo (recalibración anual
   como servicio opcional).
+- Cuando se cotiza **+HR**, la sonda SHT45 reemplaza a la NTC1 como fuente de temperatura de
+  cámara (mide las dos cosas en una sola cápsula y un solo agujero): la NTC1 queda libre
+  para la sonda de producto. Un cable menos y un soporte menos.
 
 La misma entrada admite una **sonda de producto DS18B20 en vaina de acero inoxidable**, para
 clientes cuya auditoría exige temperatura de producto y no de aire.
@@ -142,24 +167,38 @@ clientes cuya auditoría exige temperatura de producto y no de aire.
   de alimentación, marcados de seguridad, leyenda de código de LED.
 - **Borneras rotuladas por función, no por número** (`DI1 PUERTA`, `RL1 ON/OFF`,
   `TTL XR06`), en el plástico y en la PCB.
-- Kit en caja: gateway, **cable TTL armado**, whip de antena, juego de borneras, guía rápida
-  plastificada de una hoja (lado A: conexionado; lado B: código de LED y 5 problemas
-  frecuentes). La sonda T/HR, el clamp y los prensacables van en kits aparte.
+- Kit en caja: gateway, **sonda de cámara con soporte**, **kit de 3 derivaciones rotuladas**,
+  whip de antena, juego de borneras, guía rápida plastificada de una hoja (lado A:
+  conexionado y colores; lado B: código de LED y 5 problemas frecuentes). La sonda de
+  evaporador, la T/HR, el clamp y los prensacables van en kits aparte.
 
-## 9. Instalación objetivo: 15 minutos
+## 9. Instalación objetivo: 25 minutos
 
-1. Clipar en el riel (2 min).
-2. Alimentación (ó 12-24 V del tablero) y verificación del LED de arranque (2 min).
-3. **Enchufar el cable TTL al XR06** (1 min — era el paso de 8 min con XJ485).
-4. Un hilo del relé 1 a la entrada digital del XR06 para el ON/OFF; el hilo de puerta solo
-   si el fin de carrera no está ya cableado al controlador (4 min).
-5. Escanear el QR, aparear Wi-Fi; el asistente prueba el enlace Modbus, lee la temperatura y
-   la compara con el display, prueba el relé, dispara una alarma de prueba y confirma que
-   llegó al teléfono (5 min).
+La rev. 3 agrega cableado de 230 V, así que la instalación es más larga que la de la rev. 2 —
+pero sigue sin cortar el servicio ni tocar la configuración del controlador.
+
+1. Clipar en el riel y alimentar; verificar el LED de arranque (4 min).
+2. **Tres derivaciones** desde las borneras de salida del XR06 a las entradas de detección,
+   siguiendo los colores del kit (6 min).
+3. **Relé de corte:** intercalar el contacto NC en la alimentación del XR06 (4 min, **con el
+   tablero sin tensión**).
+4. Sonda de cámara: montar y pasar el cable (5 min). Fin de carrera de puerta a DI1 si existe.
+5. Escanear el QR, aparear Wi-Fi, y el asistente (6 min):
+   - pide `Pt`, `rL`, `SET`, `AU`, `AL`, `Ad`, `dA`, `Cy`, `Cn`, `td`, `Md`, `dt`, `Fd`, `ot`
+     leídos del display, y los guarda en el acta;
+   - **compara su temperatura con la del display** y aplica `ot`;
+   - pide **un deshielo manual con la tecla del XR06** y verifica que se encienda el canal de
+     deshielo (prueba de cableado de las tres derivaciones);
+   - prueba el corte y la reposición, confirmando que las salidas quedan sin tensión;
+   - **configura `od` ≥ 3 min en el XR06** (lo indica paso a paso, el técnico lo hace en el
+     frente);
+   - dispara una alarma de prueba y confirma que llegó al teléfono del cliente.
 
 El paso 5 es parte del producto: una instalación no se considera terminada hasta que **el
-número de la app coincide con el del display y una alarma de prueba llegó al teléfono del
-cliente**. El asistente lo exige y lo registra en el acta de puesta en marcha en PDF.
+número de la app coincide con el del display, las tres derivaciones responden al deshielo
+manual y una alarma de prueba llegó al teléfono del cliente**. Queda registrado en el acta de
+puesta en marcha en PDF, con los parámetros del controlador: ese acta es también el respaldo
+de que el equipo del cliente se entregó configurado como estaba.
 
 ## 10. Lenguaje visual
 
