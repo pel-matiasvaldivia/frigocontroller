@@ -1,90 +1,99 @@
-# 01 — Arquitectura de sistema
+# 01 — Arquitectura de sistema (rev. 2)
 
 ## 1. Reparto de responsabilidades
 
 | Capa | Responsable | Qué hace | Qué NO hace |
 |---|---|---|---|
-| Control y seguridad | **XR06CX** | Lazo de temperatura, ciclos de deshielo, protección de compresor (tiempos mínimos), relés de potencia | Nada que dependa de la red |
-| Supervisión y comando | **Gateway FrigoController** | Lee estado, mide T/HR propia, lee puerta y contactos auxiliares, comanda consigna y ON/OFF, genera alarmas locales, almacena y reenvía | Jamás conmuta el compresor directamente ni sustituye los enclavamientos del XR06 |
+| Control, seguridad **y medición** | **XR06CX** | Lazo de temperatura, ciclos de deshielo, protección de compresor, relés de potencia, **sondas NTC P1/P2**, estado de puerta | Nada que dependa de la red |
+| Supervisión y comando | **Gateway FrigoController** | Lee estado y temperaturas por Modbus, comanda consigna y ON/OFF, genera alarmas locales, almacena y reenvía | Jamás conmuta el compresor ni sustituye los enclavamientos del XR06 |
 | Persistencia y reglas | **Backend** | Series temporales, escalado de alarmas, reportes, multi-sitio, usuarios | Control en tiempo real |
 | Operación | **App** | Visualización, comando, reconocimiento de alarmas, reportes | — |
 
-Esta separación es lo que hace al producto vendible en un contexto de alimentos: ninguna
-decisión que afecte la cadena de frío depende de la nube ni del enlace Wi-Fi.
+**Cambio clave de la rev. 2:** la medición vuelve al XR06. Esto tiene una ventaja real más
+allá del costo — la app muestra **exactamente** el número del display del controlador, así
+que el operador nunca ve dos temperaturas distintas para la misma cámara. Era una fuente
+previsible de llamados a soporte.
+
+Y tiene una consecuencia que hay que asumir: **el enlace Modbus pasa a ser crítico.** Sin
+él no hay dato de proceso, por lo que `comm_fail` sube de severidad media a **alta**, y la
+calidad de la interfaz física al XR06 (aislación, protecciones, cable) deja de ser un lujo.
+Por eso la aislación galvánica se mantuvo pese al recorte de costos.
 
 ## 2. Flujo de datos
 
 ```
-XR06 ──Modbus RTU 1 s──▶ cache de estado ──┐
-SHT45 ──I²C 5 s─────────▶ filtro + plausib.─┤
-DI (puerta, HP, térmico) ──scan 10 ms──────▶┤──▶ motor de     ──▶ eventos ──▶ cola NVS/flash
-CT compresor ──RMS 1 s─────────────────────▶┤    alarmas           (ring buffer, 30 días)
-                                            │   (local, offline)        │
-                                            └──▶ telemetría 60 s ───────┤
-                                                                        ▼
-                                                        MQTT/TLS ──▶ broker ──▶ TSDB + reglas ──▶ push / WhatsApp / mail
-                                                             ▲
-App ──▶ backend ──▶ comando MQTT (QoS1, idempotente) ────────┘
+XR06 ──Modbus 1 s──▶ cache de estado ──┐
+  · temperaturas P1 / P2                │
+  · bits de relés y deshielo            │
+  · flags de alarma AH1/AL1/P1/P2       ├──▶ motor de     ──▶ eventos ──▶ cola en flash
+  · estado de entrada de puerta         │    alarmas           (ring buffer, 30 días)
+DI1/DI2 ──scan 10 ms───────────────────▶┤   (local, offline)        │
+[sonda T/HR accesorio] ──I²C 30 s──────▶┤                           │
+[CT accesorio] ──RMS 1 s───────────────▶┘──▶ telemetría 60 s ───────┤
+                                                                    ▼
+                                                    MQTT/TLS ──▶ broker ──▶ reglas ──▶ push / WhatsApp / mail
+                                                         ▲
+App ──▶ backend ──▶ comando MQTT (QoS1, idempotente) ────┘
 ```
-
-**Cadencias de diseño**
 
 | Dato | Período | Motivo |
 |---|---|---|
-| Polling Modbus de estado | 1 s | Capturar transiciones de relés y deshielo |
-| Lectura T/HR propia | 5 s | Inercia térmica alta; ahorra ruido y consumo |
-| Scan de entradas digitales | 10 ms + antirrebote 50 ms (puerta: 2 s de confirmación) | No perder un pulso de puerta |
-| Telemetría a la nube | 60 s (configurable 15 s–15 min) | Compromiso costo de datos / resolución HACCP |
+| Polling Modbus de estado y temperaturas | 1 s | Capturar transiciones de relés y deshielo |
+| Lectura de parámetros (`SET`, umbrales, `idF`, `MdF`…) | 10 s / 5 min | Cambian poco; ahorra tráfico en el bus |
+| Scan de entradas digitales propias | 10 ms + antirrebote (puerta: 2 s) | No perder un pulso de puerta |
+| Telemetría a la nube | 60 s (configurable 15 s–15 min) | Costo de datos vs. resolución |
 | Eventos y alarmas | Inmediato (< 2 s) | Es el valor del producto |
-| Registro para trazabilidad | 15 min (promedio, mín, máx del intervalo) | Requisito típico de auditoría |
+| Registro para trazabilidad | 15 min (promedio, mín, máx) | Requisito típico de auditoría |
 
 ## 3. Comando de ON/OFF: dos caminos, uno confiable
 
-Es el punto más delicado del requerimiento, porque un ON/OFF que falla deja la cámara
-apagada sin que nadie lo sepa.
+Sin cambios respecto de la rev. 1 — es el punto más delicado del requerimiento, porque un
+ON/OFF que falla deja la cámara apagada sin que nadie lo sepa.
 
-**Camino A — Modbus (primario):** escritura del bit de stand-by del XR06. Requiere que el
-parámetro `ONF` esté habilitado. Ventaja: el XR06 queda en stand-by "consciente",
-mantiene display, alarmas de puerta y comunicación.
+**Camino A — Modbus (primario):** escritura del bit de stand-by. Requiere que el parámetro
+`ONF` esté habilitado. El XR06 queda en stand-by "consciente", con display y alarmas.
 
-**Camino B — Relé sobre entrada digital (respaldo y verificación):** se configura una
-entrada digital del XR06 (`i1F = oFF` o equivalente) como ON/OFF remoto y se la comanda
-con el **Relé 1** del gateway. Ventaja: funciona aun si el puerto serie falla.
+**Camino B — Relé sobre entrada digital (respaldo):** una entrada digital del XR06
+configurada como ON/OFF (`i1F = oFF`), comandada por el **Relé 1** con contacto **NC**.
+Funciona aun si el puerto serie falla.
 
-**Regla de verificación cruzada:** tras cada comando, el gateway relee el estado por
-Modbus. Si en 10 s el estado no coincide con lo comandado, usa el camino alternativo y, si
-tampoco coincide, emite la alarma `cmd_fail` a la app con el estado real. **Nunca se
-reporta "apagado" u "encendido" por haber enviado el comando: solo por haberlo leído.**
+**Verificación cruzada:** tras cada comando el gateway relee el estado por Modbus. Si en
+10 s no coincide, usa el camino alternativo; si tampoco, emite `cmd_fail` con el estado
+real. **Nunca se reporta "apagado" u "encendido" por haber enviado el comando: solo por
+haberlo leído.**
 
 > **No recomendado:** cortar la alimentación del compresor con un relé del gateway. Se
-> pierden los tiempos mínimos de protección del compresor y los enclavamientos del XR06.
+> pierden los tiempos mínimos de protección y los enclavamientos del XR06.
 
-## 4. Matriz de modos de falla (FMEA resumido)
+## 4. Matriz de modos de falla (FMEA, rev. 2)
 
 | Falla | Detección | Comportamiento del gateway | Comportamiento de la cámara |
 |---|---|---|---|
-| Caída de Wi-Fi | Sin ACK MQTT / sin AP | Sigue registrando en flash, alarmas locales por buzzer y relé 2, reconexión con backoff | Normal |
-| Caída del backend | LWT / sin ACK | Igual al anterior; reenvía backlog al volver | Normal |
-| Gateway sin alimentación | Nube: LWT + ausencia de heartbeat > 5 min → alerta "equipo offline" | — | **Normal (fail-safe)** |
-| Falla de puerto serie / XJ485 | 3 timeouts Modbus consecutivos | Alarma `comm_fail`; **sigue midiendo con sonda propia y reportando T/HR** | Normal |
-| Falla de sonda del XR06 (P1/P2) | Flag del XR06 | Alarma `probe_fail` crítica | XR06 pasa a modo degradado (ciclos por tiempo) — alarma crítica, requiere visita |
-| Falla de sonda propia | Sin ACK I²C, valor fuera de rango o derivada imposible | Alarma `own_probe_fail`, usa la del XR06 como fuente única | Normal |
-| Relé del gateway pegado | Verificación cruzada de estado | Alarma `cmd_fail` | Según el camino: el XR06 conserva su lógica |
-| Deshielo que no termina | Duración > `MdF` + margen | Alarma `defrost_timeout` | XR06 corta deshielo por tiempo máximo |
-| Compresor que no arranca | Bit de relé activo pero CT sin corriente > 60 s | Alarma `compressor_no_current` (**térmico, fase o contactor**) | Sube temperatura → alarma de alta |
-| Ciclado corto | > N arranques/hora medidos por CT | Alarma `short_cycling` (predictiva: carga de gas, presostato) | Normal pero degradado |
-| Puerta abierta | DI + `dOA` del XR06 | Alarma a los 90 s (configurable) | XR06 puede inhibir compresor/ventiladores |
+| Caída de Wi-Fi | Sin ACK MQTT | Sigue leyendo el XR06 y registrando en flash; alarmas locales por buzzer; reconexión con backoff | Normal |
+| Caída del backend | LWT / sin ACK | Ídem; reenvía backlog al volver | Normal |
+| Gateway sin alimentación | Nube: LWT + sin heartbeat > 5 min → "equipo offline" | — | **Normal (fail-safe)** |
+| **Falla del enlace al XR06** (cable TTL, aislador, puerto) | 3 timeouts Modbus consecutivos (3 s) | **Alarma `comm_fail` de severidad alta.** Sin temperatura: el equipo queda ciego al proceso y lo dice explícitamente en la app. Sigue funcionando DI1/DI2 y el relé de ON/OFF | Normal (el XR06 controla solo) |
+| Falla de sonda del XR06 (P1/P2) | Flags `P1`/`P2` | Alarma `probe_fail` crítica | XR06 pasa a ciclos por tiempo — requiere visita |
+| Deshielo que no termina | Duración > `MdF` + 20 % | Alarma `defrost_timeout` | XR06 corta por tiempo máximo |
+| Puerta abierta | Estado de la DI del XR06 por Modbus, o DI1 propia | Alarma a los 90 s (configurable) | XR06 puede inhibir compresor/ventiladores |
+| Relé del gateway pegado | Verificación cruzada de estado | Alarma `cmd_fail` | El XR06 conserva su lógica |
+| Compresor que no arranca | **Solo con accesorio CT** (relé activo y < 0.5 A por 60 s). Sin CT: se detecta indirectamente por la alarma de alta temperatura, más tarde | `compressor_no_current` ó `temp_high` | Sube la temperatura |
+| Hielo o deriva en la sonda de regulación | **No detectable sin sonda accesorio** (se perdió `probe_mismatch`) | — | Queda a cargo del mantenimiento preventivo |
+| Ciclado corto | Conteo de transiciones del bit de relé por Modbus (sin CT, con menor precisión) | `short_cycling` | Normal pero degradado |
 
-Las tres filas marcadas en negrita son las que justifican el producto frente a un simple
-datalogger: detectan el problema **antes** de que el producto se pierda.
+Las dos filas de "no detectable sin accesorio" son el precio explícito del recorte de
+costos: están listadas aquí, y no escondidas, para que la decisión se tome con el dato.
 
-## 5. Decisiones de arquitectura y por qué
+## 5. Decisiones de arquitectura y por qué (actualizado)
 
 | Decisión | Alternativa descartada | Razón |
 |---|---|---|
-| Sonda T/HR propia, independiente del XR06 | Leer solo los registros del XR06 | Permite detectar discrepancia sonda-vs-sonda (deriva/hielo en la NTC) y seguir reportando con el serie caído. Además el XR06 no mide HR |
-| RS-485 aislado galvánicamente | RS-485 no aislado (más barato) | Lazos de masa y transitorios de contactores en tableros de refrigeración; es la falla de campo nº 1 en gateways industriales |
-| Motor de alarmas en el equipo | Reglas solo en la nube | Alarma con la red caída, que es exactamente cuando suelen fallar las cosas |
-| Mapa Modbus en archivo de configuración | Direcciones compiladas | La línea XR tiene variantes de firmware y el producto debe extenderse luego a otros combistatos (XR02/XR03, Eliwell, Full Gauge) sin tocar el firmware |
-| Wi-Fi 2.4 GHz + LTE opcional | Solo LTE | Costo y alcance: la mayoría de los comercios tiene Wi-Fi; LTE se reserva para la variante FC-300 |
+| **Temperatura tomada del XR06 por Modbus** | Sonda propia de serie | −USD 10.60/u. y un solo número para el operador y el display. Costo: `comm_fail` pasa a crítica y se pierde la verificación cruzada |
+| **Sonda T/HR como accesorio, no de serie** | Sensor barato a bordo del gabinete | El XR06 no mide HR y un sensor dentro del tablero mediría la humedad del tablero. Se cotiza solo donde la HR importa |
+| **Conexión directa al puerto TTL** | Módulo XJ485 oficial | −USD 45/punto, el 54 % del ahorro total. Riesgo cubierto con población alternativa RS-485 en la misma PCB |
+| **Aislación galvánica mantenida** | TTL/RS-485 sin aislar (−USD 2.50) | Transitorios de contactores y lazos de masa; y ahora el enlace es crítico. Una visita técnica cuesta USD 150 |
+| ESP32-C3 de un solo núcleo | ESP32-S3 | La carga real es 1 trama Modbus/s; se compensa con prioridades y watchdog |
+| Una PCB con cuatro poblaciones | Un diseño por variante | Un stock, una herramienta, cuatro SKU — y el plan B del TTL sale gratis |
+| Motor de alarmas en el equipo | Reglas solo en la nube | Alarma con la red caída, que es cuando suelen fallar las cosas |
+| Mapa Modbus en archivo de configuración | Direcciones compiladas | Variantes de firmware del XR06 y extensión futura a otros combistatos sin tocar el firmware |
 | MQTT sobre TLS mutuo | HTTP polling | Comandos descendentes, bajo consumo de datos, detección de offline con LWT |

@@ -11,7 +11,7 @@ profile:
   id: copeland-dixell-xr06cx
   name: "Copeland / Dixell XR06CX"
   firmware_tested: "PENDIENTE — completar con la version del XR06 del banco"
-  physical_layer: xj485            # xj485 | ttl_direct | none(degradado)
+  physical_layer: ttl_direct       # ttl_direct (FC-E, linea base) | xj485 (FC-R) | none (degradado)
 
 serial:
   # El firmware autodetecta probando esta lista en orden y persiste la que responde.
@@ -27,6 +27,7 @@ serial:
 poll_groups:
   - { name: status,    period_ms: 1000, points: [temp_p1, temp_p2, status_word] }
   - { name: setpoint,  period_ms: 10000, points: [setpoint] }
+  - { name: inputs,    period_ms: 1000, points: [digital_inputs] }
   - { name: params,    period_ms: 300000, points: [hysteresis, sp_min, sp_max,
                                                    alarm_high, alarm_low, alarm_delay,
                                                    defrost_interval, defrost_max,
@@ -71,6 +72,17 @@ points:
       11: alarm_probe_p2       # P2
       12: alarm_door_open
       13: alarm_external
+  digital_inputs:
+    # Fuente primaria del estado de puerta cuando el fin de carrera esta cableado
+    # al XR06 (i1F = dor). Si no lo esta, se usa la DI1 propia del gateway.
+    label: "Entradas digitales del XR06"
+    fn: 0x02            # read discrete inputs
+    addr: 0x0000
+    type: bitfield16
+    verify: true
+    bits:
+      0: xr06_di1       # tipicamente puerta
+      1: xr06_di2
   setpoint:
     label: "Consigna SET"
     fn_read: 0x03
@@ -108,12 +120,39 @@ commands:
     label: "Silenciar alarma del controlador"
     primary: { fn: 0x05, addr: null, verify: true }
 
-# Modo degradado: lo que sigue funcionando si el Modbus no esta disponible
-# (controlador viejo, sin XJ485, o puerto serie en falla).
+# ----------------------------------------------------------------------------
+# Rev. 2: de donde sale cada dato. El equipo base no tiene sensores propios.
+sources:
+  temperature:     { primary: temp_p1, fallback: none }       # sin Modbus NO hay temperatura
+  evaporator:      { primary: temp_p2, fallback: none }
+  humidity:        { primary: accessory_sht45, fallback: none }  # ausente en el equipo base
+  compressor_run:  { primary: status_word.relay_compressor, confirm: accessory_ct }
+  defrost:         { primary: status_word.defrost_active }
+  door:            { primary: digital_inputs.xr06_di1, fallback: gateway_di1 }
+  onoff:           { primary: commands.standby, fallback: relay_1 }
+
+# Accesorios: se declaran aqui y la app oculta la metrica si el accesorio no esta.
+accessories:
+  accessory_sht45:
+    present: false        # SKU +HR
+    bus: i2c
+    period_ms: 30000
+    heater: { on_s: 10, every_min: 60 }
+  accessory_ct:
+    present: false        # SKU +CT
+    channel: adc0
+    range_a: 10
+  accessory_ds18b20:
+    present: false        # sonda de producto
+    bus: onewire
+
+# Modo degradado: controlador sin puerto serie, o enlace en falla permanente.
+# ATENCION: sin Modbus el equipo NO tiene temperatura. Solo sirve para
+# instalaciones donde se acepta monitoreo por contactos, o con sonda accesorio.
 degraded_mode:
-  temperature_source: own_sensor
-  humidity_source: own_sensor
-  compressor_state: current_transformer
-  door_state: digital_input_1
+  temperature_source: accessory_sht45   # unica opcion; si no esta, no hay dato
+  compressor_state: accessory_ct
+  door_state: gateway_di1
   onoff_control: relay_1
-  xr06_alarm_contact: digital_input_4
+  xr06_alarm_contact: gateway_di2
+  alarm_on_entry: comm_fail             # severidad alta

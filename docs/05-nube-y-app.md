@@ -64,16 +64,23 @@ Flutter (una base, iOS + Android + web). Jerarquía: **Organización → Sitio �
 
 ### Pantalla de cámara (la que mira el operador 20 veces al día)
 
+La humedad aparece como segundo dato grande **solo si la cámara tiene la sonda accesorio
+instalada**; en el equipo base, ese espacio lo ocupa la temperatura de evaporador. La app
+no muestra un recuadro de humedad vacío ni un guion: una métrica que el equipo no puede
+medir simplemente no existe en la interfaz de esa cámara.
+
 ```
 ┌──────────────────────────────────────────┐
 │ ‹ Cámara 2 — Congelados    ● En línea    │
 │                                          │
-│            −18.4 °C          86 %HR      │   ← dato grande, legible a 2 m
+│            −18.4 °C                      │   ← dato grande, legible a 2 m
+│         evaporador −24.1 °C              │   ← sonda P2 del XR06, si está habilitada
 │         consigna −18.0 °C                │
 │                                          │
-│   [ ❄ ENFRIANDO ]  compresor ● 7.3 A     │   ← chip de estado + confirmación real
+│   [ ❄ ENFRIANDO ]  compresor ● en marcha │   ← bit del relé del XR06 (con accesorio CT
+│                                          │      se agrega el consumo real en A)
 │                                          │
-│   Puerta  ○ cerrada   ·  23 aperturas hoy│
+│   Puerta  ○ cerrada   ·  23 aperturas hoy│   ← entrada digital del XR06, o DI1 propia
 │   Deshielo  último 04:10 · próximo 10:10 │
 │   ───────── 24 h ─────────────────────── │
 │   ╱╲    ╱╲    ╱╲   ← curva con bandas de │
@@ -91,9 +98,13 @@ Decisiones de UX que importan en este dominio:
    desde lejos, con guantes, en un pasillo oscuro.
 2. **Nunca mentir sobre el estado.** Cada valor muestra su antigüedad ("hace 12 s"). Si el
    equipo está offline, la tarjeta se pone en gris con el último valor conocido y su hora;
-   no se muestra un número viejo como si fuera actual. Si el Modbus falla pero la sonda
-   propia responde, se indica explícitamente "sin comunicación con el controlador —
-   midiendo con sonda propia".
+   no se muestra un número viejo como si fuera actual.
+   **Caso propio de la rev. 2:** si el gateway está en línea pero el enlace Modbus cayó, no
+   hay temperatura que mostrar. La tarjeta pasa a ámbar con el texto *"sin comunicación con
+   el controlador — última lectura −18.4 °C hace 6 min"*, el número se muestra tachado y se
+   ofrece el botón de diagnóstico. El vacío de dato se hace visible, no se disimula con el
+   último valor: es la diferencia entre un operador que va a mirar la cámara y uno que se
+   queda tranquilo sin motivo.
 3. **Consigna con fricción deliberada.** Rueda o stepper de 0.5 °C con los límites `LS`/`US`
    del controlador visibles como topes, resumen "de −18.0 a −18.5 °C" y confirmación.
    Se envía al soltar (debounce 1.5 s), no en cada movimiento: protege la EEPROM del XR06.
