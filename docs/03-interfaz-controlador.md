@@ -10,9 +10,12 @@
 > - **Camino A (línea base):** envolvente física. El gateway mide con su propia sonda y
 >   detecta tensión en las tres salidas de relé del XR06. Se especifica en
 >   [doc 02](02-hardware.md) y en `config/perfil-xr06cx-envolvente.yaml`.
-> - **Camino B:** ModBUS RTU sobre RS-485, para controladores que sí lo tienen (Full Gauge
->   MT-530/TC-900, Dixell XW, Carel IR33, Eliwell) — ya sea porque el cliente los tiene o
->   porque se reemplaza el XR06CX para habilitar consigna remota.
+> - **Camino B:** ModBUS RTU sobre RS-485, para controladores que sí lo tienen — ya sea
+>   porque el cliente los tiene o porque se reemplaza el XR06CX para habilitar consigna
+>   remota. Candidatos relevados, con sus fuentes, en
+>   **[doc 11](11-controladores-nivel2.md)**: **Danfoss ERC 213** (mapa de registros
+>   publicado por el fabricante) y **Carel IR33+** (RS-485 a bordo, sin adaptador). **Full
+>   Gauge queda fuera:** su RS-485 usa protocolo propietario Sitrad, no ModBUS.
 >
 > **Este documento especifica el camino B** y el procedimiento de validación de cualquier
 > mapa de registros. Sigue siendo necesario: es la base del *upgrade* de nivel 2 y de la
@@ -24,7 +27,7 @@
 |---|---|---|
 | **RS-485 nativo del controlador** | Bornera A/B del controlador → bornera A/B del gateway (población FC-R, SP3485 + jumper de 120 Ω) | Controlador con ModBUS de fábrica. **Es el camino B puro** |
 | **Bus existente del cliente** | El gateway se cuelga de un RS-485 ya instalado | Hay que verificar que **no haya otro maestro** (un supervisor tipo XWEB se pisa con el gateway). Si lo hay: modo solo-lectura pasiva, u otro puerto |
-| **Adaptador TTL→RS-485 del fabricante** | Para familias que sí lo soportan y lo documentan | Solo si el manual del controlador concreto lo lista. **No es el caso del XR06CX** |
+| **Adaptador TTL→RS-485 del fabricante** | Para familias que sí lo soportan y lo documentan | **Es el caso más común del rubro** (Dixell XJ485-CX, Danfoss EKA 206, Eliwell, Carel IR33 original): +USD 35-55 por punto. **No aplica al XR06CX**, que no habla ModBUS por ningún medio |
 
 **Parámetros serie:** los fija el manual del controlador elegido. El firmware autodetecta
 probando 9600/19200 × {8N2, 8E1, 8N1} en el arranque y persiste la combinación que responda.
@@ -171,9 +174,11 @@ producto sin tocar el firmware.
 Banco: controlador + fuente + 2 NTC (una en vaso con hielo) + simulador de contacto de puerta
 + gateway (población FC-R) + PC con `modpoll`/`mbpoll`.
 
-1. **Leer el manual del controlador concreto.** Si no declara ModBUS ni tiene parámetro de
-   dirección de esclavo, **no es candidato** — es exactamente la verificación que descartó al
-   XR06CX, y hacerla primero ahorra semanas.
+1. **Leer el manual del controlador concreto** y pedir el mapa de registros **por escrito**.
+   Si no declara ModBUS, no tiene parámetro de dirección de esclavo, o el fabricante no
+   entrega el mapa, **no es candidato** — es la verificación que descartó al XR06CX y la que
+   descarta a la familia Dixell para el camino B (doc 11 §3.4). Hacerla primero ahorra
+   semanas.
 2. **Enumerar.** `mbpoll -m rtu -a <addr> -b 9600 -P none -s 2 -t 4 -r 1 -c 125 /dev/ttyUSB0`
    para funciones 0x03 y 0x04, barriendo el rango que indique el manual. Guardar el dump como
    línea base.

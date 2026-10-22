@@ -4,11 +4,19 @@
 # de proceso ni parametro de direccion de esclavo). Ver docs/10 §1.
 # Para ese controlador se usa config/perfil-xr06cx-envolvente.yaml.
 #
-# Este perfil es la PLANTILLA del camino B: controladores con RS-485 ModBUS
-# nativo (Full Gauge MT-530/TC-900, Dixell XW, Carel IR33, Eliwell), ya sea
-# porque el cliente los tiene o porque se reemplaza el XR06CX para habilitar
-# consigna remota. Agregar un controlador = agregar un archivo como este;
-# NO se recompila el firmware.
+# Este perfil es la PLANTILLA del camino B: controladores con ModBUS RTU, ya
+# sea porque el cliente los tiene o porque se reemplaza el XR06CX para
+# habilitar consigna remota. Candidatos relevados en docs/11:
+#   - Danfoss ERC 213 (fw >= 4.16): mapa de registros PUBLICADO. Recomendado.
+#     TTL a bordo -> requiere adaptador; su TTL RX exige >= 50 mA de drive.
+#     Serie fija: 9600 8E1.
+#   - Carel IR33+: RS-485 A BORDO (sin adaptador), autodeteccion ModBUS/CAREL.
+#     Verificar reemplazo vigente: el IR33+ sale de catalogo.
+#   - Eliwell/EVCO clase EV3294: hay variantes con RS-485 a bordo. Pedir el
+#     numero de parte exacto.
+#   - Dixell XW/XR: requiere XJ485-CX y Emerson no publica los registros.
+#   - Full Gauge: NO sirve. Su RS-485 usa protocolo propietario Sitrad.
+# Agregar un controlador = agregar un archivo como este; no se recompila.
 #
 # Todo valor con "verify: true" debe cerrarse contra el manual del controlador
 # concreto y el banco (procedimiento de docs/03 §5) antes de produccion.
@@ -19,13 +27,16 @@ profile:
   strategy: modbus
   controller_model: "PENDIENTE — completar con el controlador elegido"
   firmware_tested: "PENDIENTE"
-  physical_layer: rs485            # poblacion FC-R
+  physical_layer: rs485            # rs485 (a bordo) | ttl_adapter (TTL + conversor)
+  # La poblacion FC-R lleva las dos salidas: bornera A/B y puerto TTL con
+  # driver de >= 50 mA, porque la mayoria de los candidatos usa TTL.
 
 serial:
   # El firmware autodetecta probando esta lista en orden y persiste la que responde.
   candidates:
-    - { baud: 9600,  databits: 8, parity: none, stopbits: 2 }   # default esperado
-    - { baud: 9600,  databits: 8, parity: even, stopbits: 1 }
+    - { baud: 9600,  databits: 8, parity: even, stopbits: 1 }   # Danfoss ERC 21x (fijo)
+    - { baud: 9600,  databits: 8, parity: none, stopbits: 2 }   # familia Dixell
+    - { baud: 9600,  databits: 8, parity: none, stopbits: 1 }
     - { baud: 19200, databits: 8, parity: none, stopbits: 2 }
   slave_address: 1                 # parametro de direccion del XR06
   timeout_ms: 300

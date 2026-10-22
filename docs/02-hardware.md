@@ -49,7 +49,7 @@ potencia ni depender del tamaño de la carga.
 | Entradas digitales | 2 × PC817 con wetting de 12 V | Puerta propia (contacto limpio) + una libre. **No se comparte la entrada digital del XR06** (doc 10 §4) |
 | Fuente | **HLK-PM05**, 100–264 Vac | Toma de los mismos bornes de alimentación del XR06 |
 | RTC | **PCF85063A** + supercap | Estampa de tiempo de los registros offline |
-| Interfaz serie (población FC-R) | **SP3485** + bornera A/B + jumper de 120 Ω | Para el **camino B** (controlador con RS-485 nativo) y para extender el producto a Full Gauge, Carel o Eliwell sin rediseñar |
+| Interfaz serie (población FC-R) | **SP3485** + bornera A/B + jumper de 120 Ω, **y un puerto TTL con driver de ≥ 50 mA** | Para el **camino B** y para extender el producto a otras marcas sin rediseñar. **Las dos salidas:** el relevamiento de controladores (doc 11 §1) mostró que la mayoría del rubro usa TTL + adaptador externo, y el Danfoss ERC 213 exige más de 50 mA en su línea TTL RX. Preverlo ahora cuesta ~USD 0.40; descubrirlo después es un rediseño de PCB |
 
 **Una PCB, cuatro poblaciones:** FC-A (envolvente, línea base) · FC-R (RS-485, camino B y
 otros controladores) · +HR (sonda de humedad) · +CT (clamp de corriente). Un stock, una

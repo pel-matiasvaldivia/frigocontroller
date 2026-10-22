@@ -50,7 +50,7 @@ eliminó al no haber bus serie (aislador, DC/DC aislado y cable TTL: −3.70).
 | SKU | Qué agrega | Δ BOM @500 | Cuándo se cotiza |
 |---|---|---|---|
 | **FC-A** | Base: envolvente del XR06CX | — | Instalación estándar, sin tocar el controlador |
-| **FC-R** | SP3485 + bornera A/B (ModBUS nativo) | +0.90 | **Camino B:** controlador nuevo con RS-485, u otros combistatos (Full Gauge, Carel, Eliwell, Dixell XW) |
+| **FC-R** | SP3485 + bornera A/B **+ puerto TTL con driver de ≥ 50 mA** | +1.30 | **Camino B:** controlador con ModBUS. Las dos salidas, porque la mayoría de los candidatos usa TTL + adaptador (doc 11 §1) |
 | **+P2** | Segunda sonda NTC de evaporador | +3.20 | Habilita alarma de deshielo inefectivo y detección de `P2` en falla |
 | **+HR** | Sonda T/HR SHT45 (cápsula IP67, filtro PTFE, 3 m FEP) | +7.80 | **Única forma de cubrir humedad.** Frescos, maduración, auditoría de HR |
 | **+CT** | Clamp 10 A + acondicionamiento | +2.60 | Confirmación física de marcha y consumo del compresor |
@@ -64,10 +64,15 @@ Para el cliente que exija **setup de temperatura remoto**, que el XR06CX no pued
 
 | Concepto | USD |
 |---|---|
-| Gateway FC-R @500 u. | 24.20 |
-| Controlador con RS-485 ModBUS nativo (Full Gauge MT-530 Super / TC-900, Dixell XW, Carel IR33, Eliwell) | 60–120 |
+| Gateway FC-R @500 u. | 24.60 |
+| Controlador con ModBUS RTU documentado (Danfoss ERC 213, Carel IR33+ o equivalente vigente — doc 11) | 60–120 |
+| Adaptador TTL→RS-485, **solo si el controlador elegido no trae RS-485 a bordo** | 0 ó 35–55 |
 | Mano de obra de reemplazo y re-cableado (1–2 h, con corte de servicio) | 50–90 |
-| **Total instalado por cámara** | **134–234** |
+| **Total instalado por cámara** | **135–235** (con RS-485 a bordo) · **170–290** (si requiere adaptador) |
+
+**El controlador se elige por el mapa de registros, no por el precio** (doc 11): un
+controlador USD 20 más barato cuyo fabricante no publica los registros cuesta semanas de
+ingeniería inversa. Y con RS-485 a bordo se ahorran USD 35-55 por cámara de adaptador.
 
 Se cotiza **por cámara**, no por sitio: lo habitual es que el cliente quiera consigna remota
 en dos o tres cámaras críticas y monitoreo en el resto. El producto soporta las dos cosas en
@@ -93,7 +98,7 @@ el mismo tablero y en la misma app.
 | + CT de compresor | + USD 25–35 | — |
 | IP65 | + USD 30–40 | — |
 | LTE | + USD 70–90 | USD 11–14 |
-| **Upgrade "control total"** (FC-R + controlador con ModBUS + instalación) | **USD 290–390** | USD 8–10 |
+| **Upgrade "control total"** (FC-R + controlador con ModBUS + instalación) | **USD 290–390**, ó USD 340–450 si el controlador requiere adaptador TTL | USD 8–10 |
 | Instalación y puesta en marcha FC-A | USD 60–110 | — |
 
 Margen bruto de hardware **72–78 %** a 500 u.; margen del abono > 85 %.

@@ -50,10 +50,10 @@ setup remoto de temperatura **no es posible** sin una de las tres salidas del §
 
 | | **A — Envolvente no invasiva** | **B — Reemplazo del controlador** | **C — Emulación de Hot Key** |
 |---|---|---|---|
-| Qué es | Se deja el XR06CX intacto y el gateway lo rodea: sonda propia, detección de las 3 salidas, relé de corte | Se cambia el XR06CX por un controlador con RS-485 ModBUS nativo (Full Gauge MT-530/TC-900 con Sitrad, Dixell XW, Carel IR33, Eliwell con RS-485) | El gateway emula la memoria de la Hot Key y fuerza una descarga de parámetros con un ciclo de alimentación |
+| Qué es | Se deja el XR06CX intacto y el gateway lo rodea: sonda propia, detección de las 3 salidas, relé de corte | Se cambia el XR06CX por un controlador con ModBUS RTU documentado. Candidatos relevados en [doc 11](11-controladores-nivel2.md): **Danfoss ERC 213** (mapa de registros publicado) y **Carel IR33+** (RS-485 a bordo) | El gateway emula la memoria de la Hot Key y fuerza una descarga de parámetros con un ciclo de alimentación |
 | Setup de temperatura remoto | **No** (solo consigna virtual hacia arriba) | **Sí, nativo** | **Sí**, si la ingeniería inversa resulta |
 | Falla de sondas P1/P2 | Inferencial | **Directa, por registro** | Directa |
-| Costo de equipo @500 u. | **USD 26.44** | USD 24.20 **+ controlador USD 60–120** | A + I+D no acotada |
+| Costo de equipo @500 u. | **USD 26.34** | USD 24.20 **+ controlador USD 60–120** (+ USD 35–55 de adaptador si el controlador solo tiene TTL, ver doc 11 §1) | A + I+D no acotada |
 | Riesgo | **Bajo.** Nada se interviene del controlador | Bajo técnicamente; alto comercialmente (hay que convencer de cambiar un equipo que funciona, y re-cablear) | **Alto.** Protocolo propietario, desgaste de EEPROM, ~15 s de corte por escritura, riesgo de dejar el controlador sin parámetros |
 | Instalación | 15 min, sin tocar el cableado de potencia | 1–2 h por cámara, con corte de servicio | Como A |
 | Veredicto | **Línea base.** Cumple 7 de 8 requerimientos sin tocar la instalación | **Opción premium**, para el cliente que exija consigna remota | **No se cotiza.** Solo I+D de fase 4, con el cliente informado |

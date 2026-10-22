@@ -75,6 +75,7 @@ alimentado = cámara refrigerando.
 | [docs/07-bom-y-costos.md](docs/07-bom-y-costos.md) | **BOM rev. 3**, accesorios, costeo y catálogo de dos niveles |
 | [docs/08-normativa-y-plan.md](docs/08-normativa-y-plan.md) | Normativa AR/CE, ensayos, roadmap, riesgos, relevamiento previo |
 | [docs/09-optimizacion-de-costos.md](docs/09-optimizacion-de-costos.md) | Registro de recortes: qué se ahorró, qué se cede, qué se rechazó |
+| **[docs/11-controladores-nivel2.md](docs/11-controladores-nivel2.md)** | **Relevamiento de controladores con ModBUS** para el upgrade: candidatos, criterios de compra, fuentes |
 | [config/perfil-xr06cx-envolvente.yaml](config/perfil-xr06cx-envolvente.yaml) | **Perfil del camino A:** entradas, salidas, máquina de estados y alarmas |
 | [config/modbus-generico-rs485.yaml](config/modbus-generico-rs485.yaml) | Plantilla del camino B para controladores con ModBUS |
 | [hardware/diagrama-conexionado.md](hardware/diagrama-conexionado.md) | Diagrama de borneras y conexionado de campo |
@@ -85,7 +86,7 @@ alimentado = cámara refrigerando.
 | | **Nivel 1 — FC-A** | **Nivel 2 — upgrade "control total"** |
 |---|---|---|
 | Qué hace | Monitoreo completo, alarmas, deshielo, compresor, puerta, **ON/OFF remoto** | Todo lo anterior **+ setup de temperatura remoto** |
-| Cómo | Envolvente del XR06CX existente | FC-R + controlador con RS-485 ModBUS nativo |
+| Cómo | Envolvente del XR06CX existente | FC-R + controlador con ModBUS documentado ([doc 11](docs/11-controladores-nivel2.md)) |
 | Toca el controlador | **No.** Sin corte de servicio | Sí: reemplazo, 1-2 h por cámara |
 | Costo @500 u. | **USD 26.34** | USD 24.20 + controlador USD 60-120 + instalación |
 | Precio sugerido | **USD 105-140** + abono USD 6-8 | USD 290-390 + abono USD 8-10 |
