@@ -1,8 +1,19 @@
-# FrigoController — Gateway IoT para cámaras frigoríficas con controlador Copeland/Dixell XR06CX
+# FrigoController — Gateway IoT para cámaras frigoríficas con controladores Copeland/Dixell XR06 y XR75
 
 Dossier de diseño de producto: electrónica, mecánica, firmware, protocolo y app para
-monitoreo y control remoto de equipos de refrigeración comandados por un combistato
-**Copeland (Dixell) XR06CX**.
+monitoreo y control remoto de equipos de refrigeración comandados por combistatos
+**Copeland / Emerson (Dixell)**. El cliente tiene parque mixto: **XR06CH** (no comunicable) y
+**XR75CX** (familia con ModBUS).
+
+> ## Parque del cliente: dos modelos, dos caminos
+>
+> | Modelo declarado | Firmware | Camino |
+> |---|---|---|
+> | **XR06CH-5GACILS** | V1.1 | **A — envolvente FC-A.** 3 relés, 2 NTC, 1 entrada digital, sin ModBUS. Código de 7 caracteres: **variante OEM**, así que **no se pueden asumir los parámetros por defecto** |
+> | **XR75CX-5N7I3** | V2.6b | **B — ModBUS.** Familia con 4 sondas, 4 relés, 2 entradas digitales y red ModBUS-RTU. **Es la familia que ya integramos en el proyecto SmartPath M3**: estas cámaras pueden ir a nivel 2 **sin reemplazar el controlador** |
+>
+> Detalle y verificación pendiente (si esta variante trae RS-485 a bordo o requiere XJ485):
+> **[docs/13-inventario-controladores-cliente.md](docs/13-inventario-controladores-cliente.md)**
 
 > ## Rev. 3 — replanteo a partir del manual oficial
 >
@@ -80,6 +91,7 @@ alimentado = cámara refrigerando.
 | [config/perfil-xr06cx-envolvente.yaml](config/perfil-xr06cx-envolvente.yaml) | **Perfil del camino A:** entradas, salidas, máquina de estados y alarmas |
 | [config/modbus-generico-rs485.yaml](config/modbus-generico-rs485.yaml) | Plantilla del camino B para controladores con ModBUS |
 | [hardware/diagrama-conexionado.md](hardware/diagrama-conexionado.md) | Diagrama de borneras y conexionado de campo |
+| **[docs/13-inventario-controladores-cliente.md](docs/13-inventario-controladores-cliente.md)** | **Los dos modelos que el cliente tiene instalados**, qué camino le toca a cada uno y la verificación de 10 minutos |
 | [docs/manuales/](docs/manuales/) | Manual oficial del XR06CX (fuente de la rev. 3) y manual de la RTU SmartPath M3 |
 
 ## 4. Catálogo: dos niveles en lugar de una promesa incumplida
@@ -106,11 +118,12 @@ humedad) · **+CT** (clamp de compresor) · **+2R** (sirena) · **IP65** · **LT
 
 ## 5. Próximo paso: 3 datos del cliente, sin banco ni material
 
-**Primero, un dato que puede ahorrar equipos:** revisar **cámara por cámara si el controlador
-tiene bornera RS-485** (como el XR75CH, bornes 16/17/18). Las que la tengan entran directo al
-nivel 2 con la RTU que ya existe, sin envolvente y sin cambiar nada.
+**Lo más rentable de esta semana: el conteo cámara por cámara.** Cada cámara con **XR75CX** es
+una venta de nivel 2 **sin reemplazar el controlador**; cada una con **XR06CH** es un FC-A.
+Alcanza con una foto de la bornera del XR75CX (para ver si tiene los bornes 16-17-18 `RS485`)
+y el conteo de cada modelo — [doc 13 §4](docs/13-inventario-controladores-cliente.md).
 
-Para las demás, de cada XR06CX instalado hacen falta:
+De cada XR06CH instalado hacen falta además:
 
 1. **`Pt` (mapa de códigos) y `rL` (versión de software)** — ambos parámetros de solo lectura,
    visibles en el display. Identifican la variante exacta de firmware y son el dato que hay

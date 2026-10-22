@@ -150,6 +150,20 @@ Es una posición mucho más fuerte que la de volver con un producto nuevo que ig
 anterior: **explica por qué el proyecto del año pasado no se podía aplicar tal cual a su
 instalación**, que es probablemente la razón por la que no avanzó.
 
+## 7.1 Novedad: el cliente ya tiene un XR75CX instalado
+
+El cliente declaró un **XR75CX-5N7I3 (V2.6b)** entre sus equipos
+([doc 13](13-inventario-controladores-cliente.md)). Es el hermano `CX` del XR75CH que integra
+el M3, con las mismas 4 sondas, 4 relés y 2 entradas digitales.
+
+**Si esa variante trae la bornera RS-485** (hay que verificarlo: el sufijo decide, y en esta
+familia hay variantes con RS-485 y variantes con TTL), esas cámaras van a nivel 2
+**sin reemplazar el controlador ni cortar el servicio**: solo fijar `Adr` y velocidad y
+colgarles la RTU. El upgrade baja de USD 290-390 a prácticamente el costo de la RTU.
+
+Es, de lejos, la venta más fácil del proyecto: el cliente ya tiene el controlador, ya vio la
+RTU el año pasado, y no hay que tocar nada de la instalación.
+
 ## 8. A verificar antes de cotizar
 
 1. **Modelo exacto de cada controlador del cliente.** Si alguna cámara ya tiene un **XR75CH**
