@@ -1,0 +1,316 @@
+<title>FC-A como esclavo ModBUS</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
+<style>
+  /* Columna única de lectura; el recorrido de la señal es un diagrama vertical que escala a ancho de teléfono. */
+  :root{
+    --bg:#f2f5f6; --surface:#ffffff; --surface-2:#e9eef0; --line:#ccd6d9;
+    --fg:#121a1d; --muted:#5a696f; --accent:#b85c18; --accent-soft:#f6ece3;
+    --cold:#176b87; --ok:#2d7a4d; --alert:#ad3220;
+  }
+  @media (prefers-color-scheme:dark){
+    :root:not([data-theme="light"]){
+      --bg:#0d1215; --surface:#151d21; --surface-2:#1d272c; --line:#2b373d;
+      --fg:#e7eef0; --muted:#94a4aa; --accent:#e2903f; --accent-soft:#2a2016;
+      --cold:#58b2d2; --ok:#5fc087; --alert:#e4745f;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0d1215; --surface:#151d21; --surface-2:#1d272c; --line:#2b373d;
+    --fg:#e7eef0; --muted:#94a4aa; --accent:#e2903f; --accent-soft:#2a2016;
+    --cold:#58b2d2; --ok:#5fc087; --alert:#e4745f;
+    color-scheme:dark;
+  }
+
+  body{
+    background:var(--bg); color:var(--fg);
+    font-family:"IBM Plex Sans",system-ui,-apple-system,Segoe UI,sans-serif;
+    font-size:15px; line-height:1.6;
+  }
+  .wrap{
+    max-width:860px; margin:0 auto;
+    padding-left:max(16px,env(safe-area-inset-left,0px));
+    padding-right:max(16px,env(safe-area-inset-right,0px));
+    padding-block:40px 64px;
+  }
+  h1{
+    font-size:clamp(26px,5vw,38px); line-height:1.12; font-weight:700;
+    letter-spacing:-.02em; margin:0 0 14px; text-wrap:balance;
+  }
+  h2{
+    font-size:19px; font-weight:600; letter-spacing:-.01em;
+    margin:0 0 4px; text-wrap:balance;
+  }
+  p{margin:0 0 14px; max-width:64ch}
+  .eyebrow{
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:11px;
+    letter-spacing:.14em; text-transform:uppercase; color:var(--cold);
+    margin:0 0 12px;
+  }
+  .lede{font-size:17px; color:var(--fg)}
+  .muted{color:var(--muted)}
+
+  .claim{
+    border-left:3px solid var(--accent); background:var(--accent-soft);
+    padding:14px 18px; margin:22px 0 34px; border-radius:0 6px 6px 0;
+  }
+  .claim p{margin:0; max-width:60ch}
+
+  section{margin-top:40px; border-top:1px solid var(--line); padding-top:24px}
+  section > .eyebrow{margin-bottom:6px}
+
+  figure{margin:28px 0 8px}
+  figure svg{width:100%; height:auto; max-width:100%; display:block}
+  figcaption{
+    font-size:13px; color:var(--muted); margin-top:14px; max-width:62ch;
+  }
+
+  table{border-collapse:collapse; width:100%; font-size:13.5px}
+  .scroller{overflow-x:auto}
+  th,td{
+    text-align:left; vertical-align:top; padding:9px 12px 9px 0;
+    border-bottom:1px solid var(--line);
+  }
+  th{
+    font-size:11px; letter-spacing:.09em; text-transform:uppercase;
+    color:var(--muted); font-weight:600;
+  }
+  td:first-child{font-weight:500; padding-right:22px; min-width:12rem}
+
+  ol.steps{margin:16px 0 0; padding:0; list-style:none; counter-reset:s}
+  ol.steps li{
+    counter-increment:s; position:relative; padding:0 0 16px 44px;
+    max-width:62ch;
+  }
+  ol.steps li::before{
+    content:counter(s,decimal-leading-zero);
+    position:absolute; left:0; top:1px;
+    font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:12px;
+    color:var(--cold); font-weight:500;
+    border:1px solid var(--line); border-radius:4px;
+    padding:1px 6px; background:var(--surface);
+  }
+  ol.steps li.key::before{color:var(--accent); border-color:var(--accent)}
+
+  .cards{display:grid; gap:14px; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); margin-top:18px}
+  .card{
+    background:var(--surface); border:1px solid var(--line); border-radius:8px;
+    padding:16px 18px; min-width:0;
+  }
+  .card h3{font-size:14px; font-weight:600; margin:0 0 6px}
+  .card p{font-size:13.5px; color:var(--muted); margin:0}
+  .card.warn{border-left:3px solid var(--alert)}
+  .card.go{border-left:3px solid var(--ok)}
+
+  code,.mono{font-family:"IBM Plex Mono",ui-monospace,monospace; font-size:.92em}
+  code{background:var(--surface-2); padding:1px 5px; border-radius:3px}
+
+  .foot{
+    margin-top:44px; padding-top:20px; border-top:1px solid var(--line);
+    font-size:13px; color:var(--muted);
+  }
+</style>
+
+<div class="wrap">
+
+  <p class="eyebrow">FrigoController · opción 2</p>
+  <h1>El FC-A se hace pasar por un XR75</h1>
+  <p class="lede">La RTU SmartPath sabe hablar con un controlador XR75. El XR06CH no habla ModBUS por ningún medio. En lugar de traducirlo, el FC-A mide la cámara por su cuenta y contesta en el idioma que la RTU ya conoce.</p>
+
+  <div class="claim">
+    <p><strong>Para la RTU, para la nube y para la app, una cámara con XR06CH + FC-A es indistinguible de una con XR75CX.</strong> No hay que cambiar el controlador, ni el firmware de la RTU, ni una línea de la app.</p>
+  </div>
+
+  <figure>
+    <svg viewBox="0 0 760 1248" role="img" aria-label="Recorrido de los datos desde la cámara con XR06CH hasta la app del cliente, pasando por el FC-A como esclavo ModBUS y la RTU SmartPath">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/>
+        </marker>
+        <marker id="arA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--accent)"/>
+        </marker>
+      </defs>
+
+      <!-- carril de retorno: comando -->
+      <path d="M 604 1132 H 694 V 244 H 616" fill="none" stroke="var(--accent)" stroke-width="1.6"
+            stroke-dasharray="6 5" marker-end="url(#arA)"/>
+      <text transform="rotate(-90 722 700)" x="722" y="700" text-anchor="middle"
+            font-family="IBM Plex Mono, monospace" font-size="11" letter-spacing="1.6"
+            fill="var(--accent)">COMANDO  ON / OFF</text>
+
+      <!-- 1 -->
+      <rect x="96" y="16" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="48" r="15" fill="var(--cold)"/>
+      <text x="64" y="53" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">1</text>
+      <text x="120" y="50" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">Cámara con XR06CH</text>
+      <text x="120" y="72" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">El controlador sigue trabajando solo, con su propia sonda.</text>
+      <text x="120" y="89" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">No se lo toca, no se lo reconfigura, no se corta el servicio.</text>
+      <text x="120" y="113" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">3 relés · 2 sondas NTC · 1 entrada digital · sin puerto serie</text>
+      <line x1="350" y1="128" x2="350" y2="156" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 2 -->
+      <rect x="96" y="166" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="198" r="15" fill="var(--cold)"/>
+      <text x="64" y="203" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">2</text>
+      <text x="120" y="200" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">El FC-A capta por fuera</text>
+      <text x="120" y="222" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Sonda propia en la cámara y detección de tensión en las tres</text>
+      <text x="120" y="239" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">salidas de relé. Se deriva en paralelo: no interrumpe nada.</text>
+      <text x="120" y="263" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">NTC 5 s · 3 detecciones de CA 20 ms · puerta · relé de corte</text>
+      <line x1="350" y1="278" x2="350" y2="306" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 3 -->
+      <rect x="96" y="316" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="348" r="15" fill="var(--cold)"/>
+      <text x="64" y="353" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">3</text>
+      <text x="120" y="350" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">Reconstrucción del estado</text>
+      <text x="120" y="372" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Enfriando, deshielo, goteo, retardo de ventiladores. Alarmas</text>
+      <text x="120" y="389" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">con los umbrales copiados del XR06 en la puesta en marcha.</text>
+      <text x="120" y="413" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">estado · alarmas · aperturas de puerta · ciclos de compresor</text>
+      <line x1="350" y1="428" x2="350" y2="456" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 4 — el corazón -->
+      <rect x="96" y="466" width="508" height="112" rx="8" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="2"/>
+      <circle cx="64" cy="498" r="15" fill="var(--accent)"/>
+      <text x="64" y="503" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">4</text>
+      <text x="120" y="500" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="700" fill="var(--fg)">Tabla de registros ModBUS</text>
+      <text x="120" y="522" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">El FC-A publica todo eso en el mismo mapa de registros que</text>
+      <text x="120" y="539" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">la RTU ya sabe leer de un XR75. Acá ocurre la sustitución.</text>
+      <text x="120" y="563" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--accent)">esclavo ModBUS RTU · dirección 1 · 9600 8N1 · respuesta &lt; 50 ms</text>
+      <line x1="350" y1="578" x2="350" y2="616" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+      <text x="366" y="602" font-family="IBM Plex Mono, monospace" font-size="10.5" fill="var(--muted)">RS-485 · dos hilos</text>
+
+      <!-- 5 -->
+      <rect x="96" y="626" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="658" r="15" fill="var(--cold)"/>
+      <text x="64" y="663" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">5</text>
+      <text x="120" y="660" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">La RTU pregunta</text>
+      <text x="120" y="682" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Es el maestro del bus. No sabe, ni necesita saber, que del</text>
+      <text x="120" y="699" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">otro lado hay un FC-A y no un controlador XR75.</text>
+      <text x="120" y="723" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">lectura de registros cada ~1 s · LED MODBUS encendido fijo</text>
+      <line x1="350" y1="738" x2="350" y2="766" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 6 -->
+      <rect x="96" y="776" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="808" r="15" fill="var(--cold)"/>
+      <text x="64" y="813" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">6</text>
+      <text x="120" y="810" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">RTU SmartPath</text>
+      <text x="120" y="832" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Arma el reporte de estado y lo manda por la red celular.</text>
+      <text x="120" y="849" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Firmware sin cambios: es el mismo equipo del año pasado.</text>
+      <text x="120" y="873" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">LTE-M / 2G · respaldo de batería 4-6 h · 12 VDC</text>
+      <line x1="350" y1="888" x2="350" y2="916" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 7 -->
+      <rect x="96" y="926" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="958" r="15" fill="var(--cold)"/>
+      <text x="64" y="963" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">7</text>
+      <text x="120" y="960" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">Nube</text>
+      <text x="120" y="982" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Histórico, reglas de alarma y escalado a quien esté de guardia.</text>
+      <text x="120" y="999" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">Trata la cámara como cualquier otra del parque.</text>
+      <text x="120" y="1023" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--cold)">push · WhatsApp · mail · reportes</text>
+      <line x1="350" y1="1038" x2="350" y2="1066" stroke="var(--muted)" stroke-width="1.6" marker-end="url(#ar)"/>
+
+      <!-- 8 -->
+      <rect x="96" y="1076" width="508" height="112" rx="8" fill="var(--surface)" stroke="var(--line)"/>
+      <circle cx="64" cy="1108" r="15" fill="var(--ok)"/>
+      <text x="64" y="1113" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="13" fill="#fff">8</text>
+      <text x="120" y="1110" font-family="IBM Plex Sans, sans-serif" font-size="15.5" font-weight="600" fill="var(--fg)">App del cliente final</text>
+      <text x="120" y="1132" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">La cámara aparece como una más de la lista, con la misma</text>
+      <text x="120" y="1149" font-family="IBM Plex Sans, sans-serif" font-size="12.5" fill="var(--muted)">pantalla que una gobernada por un XR75CX real.</text>
+      <text x="120" y="1173" font-family="IBM Plex Mono, monospace" font-size="11" fill="var(--ok)">temperatura · compresor · deshielo · puerta · alarmas</text>
+    </svg>
+    <figcaption>El comando vuelve por el mismo camino, en línea punteada, y termina en el relé que corta los 230 V del XR06CH. El FC-A confirma el apagado observando que las tres salidas quedaron sin tensión, no por haber recibido la orden.</figcaption>
+  </figure>
+
+  <section>
+    <p class="eyebrow">Traducción</p>
+    <h2>De dónde sale cada dato que la RTU lee</h2>
+    <p class="muted">Las direcciones de cada registro salen del mapa del XR75 que la RTU ya usa. Lo que cambia es el origen físico del valor.</p>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Lo que la RTU espera de un XR75</th><th>De dónde lo saca el FC-A</th></tr></thead>
+        <tbody>
+          <tr><td>Temperatura de cámara</td><td>Sonda NTC propia, con el offset <code>ot</code> del XR06 aplicado para que coincida con el display del controlador.</td></tr>
+          <tr><td>Temperatura de evaporador</td><td>Segunda sonda propia, opcional. Sin ella se responde «sonda no presente», un estado que el mapa ya contempla.</td></tr>
+          <tr><td>Relé de compresor</td><td>Detección de tensión en la salida de compresor del XR06.</td></tr>
+          <tr><td>Relé de deshielo</td><td>Ídem, sobre el común del relé de deshielo: sirve con resistencia eléctrica y con gas caliente.</td></tr>
+          <tr><td>Relé de ventiladores</td><td>Ídem. Con los tres canales se reconstruyen también el goteo y el retardo de ventiladores.</td></tr>
+          <tr><td>Entrada digital (puerta)</td><td>Fin de carrera conectado al propio FC-A. La única entrada digital del XR06 queda libre.</td></tr>
+          <tr><td>Alarma de alta y baja</td><td>Calculada por el FC-A sobre su sonda, con los umbrales <code>AU</code>, <code>AL</code> y <code>Ad</code> copiados del XR06 al instalar.</td></tr>
+          <tr><td>Falla de sonda</td><td>Directa si falla la sonda propia. Si falla la del XR06, se infiere por el ciclado <code>Cy</code>/<code>Cn</code>: tarda unas 2 h.</td></tr>
+          <tr><td>Set point</td><td>El valor leído del display al instalar. Es de solo lectura: el XR06 no tiene canal de escritura.</td></tr>
+          <tr><td>Estado ON / OFF</td><td>Posición real del relé de corte, confirmada por las tres detecciones de tensión.</td></tr>
+          <tr><td>Buzzer</td><td>El XR06CH no tiene zumbador. Se responde el del FC-A, que es el que realmente suena en el tablero.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Camino inverso</p>
+    <h2>Qué pasa cuando alguien toca «Apagar»</h2>
+    <ol class="steps">
+      <li>El usuario apaga la cámara desde la app.</li>
+      <li>La nube manda el comando a la RTU por la red celular.</li>
+      <li>La RTU escribe el registro de stand-by en el bus, igual que lo haría con un XR75.</li>
+      <li class="key">El FC-A recibe la escritura y energiza su relé, que corta los 230 V del XR06CH.</li>
+      <li>El XR06CH se apaga: sus tres relés abren y la cámara deja de enfriar.</li>
+      <li class="key">El FC-A verifica el efecto, no el comando: las tres detecciones de tensión tienen que quedar en cero. Recién entonces actualiza el registro de estado.</li>
+      <li>La RTU lee ese registro en el ciclo siguiente y la app muestra «apagado», porque se observó y no porque se ordenó.</li>
+    </ol>
+    <p class="muted" style="margin-top:18px">Si a los 60 segundos las salidas siguen con tensión, el registro queda en «encendido» y se levanta la alarma de fallo de comando. La app nunca muestra un estado que no se verificó.</p>
+    <div class="cards">
+      <div class="card go"><h3>Encender y apagar</h3><p>Se ejecuta con el relé de corte. El contacto es normalmente cerrado: un FC-A sin alimentación deja la cámara enfriando.</p></div>
+      <div class="card go"><h3>Forzar deshielo</h3><p>Posible con el segundo relé, cableado a la entrada digital del XR06 configurada como inicio de deshielo. Es la única escritura que ese controlador acepta.</p></div>
+      <div class="card warn"><h3>Cambiar la consigna</h3><p>No se puede: el XR06 no tiene canal de escritura. El FC-A responde una excepción ModBUS en lugar de aceptar un valor que nunca va a aplicar.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Límites</p>
+    <h2>Lo que esta solución no resuelve</h2>
+    <p>Las tres limitaciones son del controlador, no del adaptador. Conviene decirlas antes de la demo y no después.</p>
+    <div class="cards">
+      <div class="card"><h3>Sin consigna remota</h3><p>Es la diferencia real entre monitorear una cámara y gobernarla. Para eso hace falta un XR75CX.</p></div>
+      <div class="card"><h3>Falla de sonda con retardo</h3><p>Se infiere observando que el controlador pasó a ciclar por tiempo. Unas 2 horas, contra el aviso inmediato de un XR75.</p></div>
+      <div class="card"><h3>Parámetros cargados a mano</h3><p>Si alguien cambia un umbral en el frente del XR06, el FC-A no se entera. La app muestra la antigüedad del último control y recuerda revalidar.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Construcción</p>
+    <h2>Qué hay que desarrollar</h2>
+    <div class="scroller">
+      <table>
+        <thead><tr><th>Componente</th><th>Esfuerzo</th><th>Nota</th></tr></thead>
+        <tbody>
+          <tr><td>Pila de esclavo ModBUS</td><td>Bajo</td><td>La librería del ESP32 ya trae el rol de esclavo; no hay que escribir el protocolo.</td></tr>
+          <tr><td>Tabla de registros</td><td>Bajo</td><td>Reusa el mecanismo de perfiles en YAML que el firmware ya tiene para leer controladores.</td></tr>
+          <tr><td>Mapeo al mapa del XR75</td><td>Medio</td><td>Es el trabajo real: escalas, signos, bits de estado y códigos de falla.</td></tr>
+          <tr><td>Escrituras y excepciones</td><td>Bajo</td><td>Relé de corte, deshielo forzado, y rechazo explícito de lo que no se puede cumplir.</td></tr>
+          <tr><td>Driver RS-485 en la placa</td><td>Ya previsto</td><td>Es la población FC-R del mismo circuito impreso.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="claim" style="margin-top:26px">
+      <p><strong>Prerequisito único y bloqueante: el mapa de registros del XR75 que usa la RTU.</strong> Sin eso no se puede empezar. Con eso, el resto es trabajo acotado sobre hardware que ya está diseñado.</p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Validación</p>
+    <h2>La prueba que lo cierra</h2>
+    <p>La forma correcta de probarlo es comparar contra un XR75CX real, que el cliente ya tiene comprado.</p>
+    <ol class="steps">
+      <li>Dos cámaras de banco: una con XR75CX real, otra con XR06CH más FC-A.</li>
+      <li>Las dos colgadas de la misma RTU, visibles en la misma app.</li>
+      <li>El mismo guion en las dos: enfriar, deshielo, abrir la puerta, provocar alarma de alta, desconectar una sonda, apagar y encender.</li>
+      <li class="key">Criterio de aceptación: la app muestra lo mismo en las dos, con las diferencias esperadas y documentadas.</li>
+    </ol>
+    <p class="muted" style="margin-top:18px">Es una prueba que el cliente puede presenciar, y es la que convierte «funciona» en «se ve igual que el equipo que ya conocés».</p>
+  </section>
+
+  <p class="foot">FrigoController · documento 16 del dossier de diseño. El detalle técnico completo, incluidas las preguntas abiertas al equipo de la RTU, está en <span class="mono">docs/16-fc-a-esclavo-modbus.md</span> del repositorio.</p>
+
+</div>

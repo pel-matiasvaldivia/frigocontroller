@@ -152,6 +152,9 @@ mismo mapa de registros del XR75 que la RTU ya sabe leer.**
 | Desarrollo | Firmware del FC-A **+ pila de esclavo ModBUS** (es poco trabajo: la parte difícil, el mapa, ya existe del lado de la RTU) |
 | Límites | Sin consigna remota (el XR06CH no se puede escribir) y falla de sonda por inferencia, no por flag. Las dos limitaciones son del controlador, no del adaptador |
 
+**Desarrollo completo de esta opción, con el recorrido de la señal de punta a punta:**
+[doc 16](16-fc-a-esclavo-modbus.md) y el esquema visual `docs/esquema-fc-a-esclavo-modbus.html`.
+
 **Es la opción que convierte el problema en producto.** El cliente podría ofrecer el servicio
 sobre **todo el parque instalado de sus propios clientes**, sin pedirles cambiar el
 controlador — que es, justamente, la objeción que mata este tipo de venta.

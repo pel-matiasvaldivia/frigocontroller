@@ -92,6 +92,7 @@ alimentado = cámara refrigerando.
 | [config/modbus-generico-rs485.yaml](config/modbus-generico-rs485.yaml) | Plantilla del camino B para controladores con ModBUS |
 | [hardware/diagrama-conexionado.md](hardware/diagrama-conexionado.md) | Diagrama de borneras y conexionado de campo |
 | **[docs/15-verificacion-borneras.md](docs/15-verificacion-borneras.md)** | **Diagramas de bornera verificados** contra los manuales oficiales, y la advertencia de no cablear con pinouts no verificados |
+| **[docs/16-fc-a-esclavo-modbus.md](docs/16-fc-a-esclavo-modbus.md)** | **El FC-A como esclavo ModBUS:** emulación del XR75 para que la RTU y la app no cambien. Esquema visual en `docs/esquema-fc-a-esclavo-modbus.html` |
 | [docs/14-kit-de-conexion-rtu.md](docs/14-kit-de-conexion-rtu.md) | **Qué hace falta para conectar cada combistato a la RTU:** kits, BOM y pasos |
 | **[docs/13-inventario-controladores-cliente.md](docs/13-inventario-controladores-cliente.md)** | **Los dos modelos que el cliente tiene instalados**, qué camino le toca a cada uno y la verificación de 10 minutos |
 | [docs/manuales/](docs/manuales/) | Manual oficial del XR06CX (fuente de la rev. 3) y manual de la RTU SmartPath M3 |
