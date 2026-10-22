@@ -75,22 +75,27 @@ alimentado = cámara refrigerando.
 | [docs/07-bom-y-costos.md](docs/07-bom-y-costos.md) | **BOM rev. 3**, accesorios, costeo y catálogo de dos niveles |
 | [docs/08-normativa-y-plan.md](docs/08-normativa-y-plan.md) | Normativa AR/CE, ensayos, roadmap, riesgos, relevamiento previo |
 | [docs/09-optimizacion-de-costos.md](docs/09-optimizacion-de-costos.md) | Registro de recortes: qué se ahorró, qué se cede, qué se rechazó |
-| **[docs/11-controladores-nivel2.md](docs/11-controladores-nivel2.md)** | **Relevamiento de controladores con ModBUS** para el upgrade: candidatos, criterios de compra, fuentes |
+| **[docs/12-plataforma-smartpath-m3.md](docs/12-plataforma-smartpath-m3.md)** | **El proyecto SmartPath M3 y el XR75CH:** el nivel 2 ya está construido. Decisión de plataforma |
+| [docs/11-controladores-nivel2.md](docs/11-controladores-nivel2.md) | Relevamiento de controladores con ModBUS: alternativas, criterios de compra, fuentes |
 | [config/perfil-xr06cx-envolvente.yaml](config/perfil-xr06cx-envolvente.yaml) | **Perfil del camino A:** entradas, salidas, máquina de estados y alarmas |
 | [config/modbus-generico-rs485.yaml](config/modbus-generico-rs485.yaml) | Plantilla del camino B para controladores con ModBUS |
 | [hardware/diagrama-conexionado.md](hardware/diagrama-conexionado.md) | Diagrama de borneras y conexionado de campo |
-| [docs/manuales/](docs/manuales/) | Manual oficial del XR06CX (fuente de la rev. 3) |
+| [docs/manuales/](docs/manuales/) | Manual oficial del XR06CX (fuente de la rev. 3) y manual de la RTU SmartPath M3 |
 
 ## 4. Catálogo: dos niveles en lugar de una promesa incumplida
 
 | | **Nivel 1 — FC-A** | **Nivel 2 — upgrade "control total"** |
 |---|---|---|
 | Qué hace | Monitoreo completo, alarmas, deshielo, compresor, puerta, **ON/OFF remoto** | Todo lo anterior **+ setup de temperatura remoto** |
-| Cómo | Envolvente del XR06CX existente | FC-R + controlador con ModBUS documentado ([doc 11](docs/11-controladores-nivel2.md)) |
+| Cómo | Envolvente del XR06CX existente | **Dixell XR75CH + RTU SmartPath M3**, que ya existe y ya se presentó a este cliente ([doc 12](docs/12-plataforma-smartpath-m3.md)). Alternativa: XR75CH + FC-R |
 | Toca el controlador | **No.** Sin corte de servicio | Sí: reemplazo, 1-2 h por cámara |
-| Costo @500 u. | **USD 26.34** | USD 24.20 + controlador USD 60-120 + instalación |
+| Costo @500 u. | **USD 26.34** | Controlador USD 60-120 + RTU + instalación. **Desarrollo: cero** |
 | Precio sugerido | **USD 105-140** + abono USD 6-8 | USD 290-390 + abono USD 8-10 |
 | Instalación | **15 min** | 1-2 h |
+
+**El nivel 2 ya está construido:** la RTU SmartPath M3 opera consigna remota y ON/OFF sobre el
+XR75CH desde el año pasado. El esfuerzo de ingeniería va al nivel 1, que es donde no hay nada
+y donde está la mayoría de las cámaras del cliente.
 
 Se vende el nivel 1 en todo el parque y el nivel 2 solo en las cámaras donde la consigna
 remota haga falta. Misma app, mismo backend, mismo gateway: el cliente no nota más
@@ -101,7 +106,11 @@ humedad) · **+CT** (clamp de compresor) · **+2R** (sirena) · **IP65** · **LT
 
 ## 5. Próximo paso: 3 datos del cliente, sin banco ni material
 
-Antes de cualquier desarrollo, de cada XR06CX instalado hacen falta:
+**Primero, un dato que puede ahorrar equipos:** revisar **cámara por cámara si el controlador
+tiene bornera RS-485** (como el XR75CH, bornes 16/17/18). Las que la tengan entran directo al
+nivel 2 con la RTU que ya existe, sin envolvente y sin cambiar nada.
+
+Para las demás, de cada XR06CX instalado hacen falta:
 
 1. **`Pt` (mapa de códigos) y `rL` (versión de software)** — ambos parámetros de solo lectura,
    visibles en el display. Identifican la variante exacta de firmware y son el dato que hay

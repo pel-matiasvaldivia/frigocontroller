@@ -65,10 +65,16 @@ Para el cliente que exija **setup de temperatura remoto**, que el XR06CX no pued
 | Concepto | USD |
 |---|---|
 | Gateway FC-R @500 u. | 24.60 |
-| Controlador con ModBUS RTU documentado (Danfoss ERC 213, Carel IR33+ o equivalente vigente — doc 11) | 60–120 |
-| Adaptador TTL→RS-485, **solo si el controlador elegido no trae RS-485 a bordo** | 0 ó 35–55 |
+| **Dixell XR75CH** (RS-485 a bordo, misma familia que el parque, integración ya probada — doc 12) | 60–120 |
+| Adaptador TTL→RS-485 | **0** con el XR75CH. 35–55 solo si se elige un controlador que no traiga RS-485 a bordo |
 | Mano de obra de reemplazo y re-cableado (1–2 h, con corte de servicio) | 50–90 |
 | **Total instalado por cámara** | **135–235** (con RS-485 a bordo) · **170–290** (si requiere adaptador) |
+
+**Alternativa sin desarrollo:** para el nivel 2 también está la **RTU SmartPath M3**, que ya
+opera sobre el XR75CH con consigna remota y ON/OFF, y que este cliente ya conoce
+([doc 12](12-plataforma-smartpath-m3.md)). Su costo y su abono de datos (es celular, no
+Wi-Fi) hay que pedirlos al equipo del M3; a cambio, el desarrollo es cero y el time-to-market
+es inmediato.
 
 **El controlador se elige por el mapa de registros, no por el precio** (doc 11): un
 controlador USD 20 más barato cuyo fabricante no publica los registros cuesta semanas de

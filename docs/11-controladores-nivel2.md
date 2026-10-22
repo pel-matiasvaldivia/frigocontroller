@@ -4,6 +4,17 @@ Relevamiento de controladores con ModBUS para reemplazar al XR06CX donde el clie
 **setup de temperatura remoto**, que el XR06CX no puede dar
 ([doc 10 §7](10-hallazgos-manual-xr06cx.md#7-setup-de-temperatura-remoto-las-tres-salidas-honestas)).
 
+> ## Corrección posterior — leer primero [doc 12](12-plataforma-smartpath-m3.md)
+>
+> Este relevamiento se hizo **antes** de conocer el proyecto SmartPath M3 que ya presentamos a
+> este cliente. Ese proyecto demuestra que el **Dixell XR75CH tiene RS-485 ModBUS a bordo**
+> (bornes 16/17/18, sin XJ485) y que **ya tenemos su mapa de registros funcionando en
+> producción**. Los dos argumentos con los que acá descarto a la familia Dixell (§3.4) caen:
+> **el XR75CH pasa a ser el candidato nº 1 del nivel 2.**
+>
+> Lo que sigue conserva su valor como relevamiento de alternativas y, sobre todo, como
+> **criterios de compra** (§4) — pero el orden de preferencia está corregido en el doc 12 §2.
+
 > **Estado de la información.** Lo que sigue se armó con fichas de fabricante, listados de
 > distribuidor y documentación de terceros. Los fabricantes de este rubro publican poco y
 > cambian de línea seguido, así que **nada de esto reemplaza una cotización firme con el
@@ -111,9 +122,13 @@ El **IDNext 974 P** de Eliwell, que a primera vista parecía candidato, **no sir
 su ficha oficial declara "un puerto serie de tipo TTL". Sirve la familia ID (ID 971/974) por
 formato y por ser un estándar de la industria, pero **solo en la variante con RS-485**.
 
-### 3.4 Dixell XW / XR (quedarse en la familia Copeland) — **no recomendado**
+### 3.4 Dixell XW / XR (quedarse en la familia Copeland) — ~~no recomendado~~ **→ ver doc 12**
 
-Tiene el atractivo de que el instalador ya conoce la marca y los parámetros, pero:
+> **Corregido.** El **XR75CH** tiene RS-485 a bordo y su integración ya está probada por
+> nosotros. Lo de abajo sigue valiendo para los modelos **sin** bornera RS-485 (XR06CX,
+> XR60CH, XW60K): dentro de la familia, **el sufijo del part number decide**.
+
+Para los modelos sin RS-485 a bordo:
 
 - **Necesita XJ485-CX** (TTL→RS-485): +USD 35-55 por punto. El listado de un distribuidor del
   XW60K muestra el campo "interface RS485" **vacío**, y la ficha del XW60L dice que la salida
@@ -123,8 +138,9 @@ Tiene el atractivo de que el instalador ya conoce la marca y los parámetros, pe
   el fabricante no publica el mapa, el upgrade depende de volver a descubrir direcciones por
   ingeniería inversa — el mismo pozo del que acabamos de salir.
 
-**Quedarse en Dixell cuesta más y documenta menos.** Solo se justifica si el cliente lo
-impone por política de marca.
+**En los modelos sin bornera RS-485, quedarse en Dixell cuesta más y documenta menos.** Pero
+con el XR75CH no aplica ninguno de los dos problemas: tiene RS-485 nativo y el mapa de
+registros lo tenemos en casa (doc 12 §2).
 
 ### 3.5 Controladores genéricos de importación con ModBUS
 
@@ -168,6 +184,9 @@ con 12 semanas de lead time no sirve para un upgrade que se vende por cámara.
 
 ## 6. Próximos pasos concretos
 
+0. **Confirmar con Emerson el part number del XR75CH** con RS-485 a bordo, precio y stock en
+   Argentina. **Es el paso que cierra el nivel 2**; los de abajo pasan a ser plan de
+   contingencia y comparación de precio.
 1. **Pedir a Danfoss** la guía de programación ModBUS vigente del ERC 21x y el código del
    adaptador TTL-485 recomendado, más precio y stock en Argentina del modelo nuevo que la
    propia tienda menciona.
