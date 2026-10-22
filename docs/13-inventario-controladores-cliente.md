@@ -71,7 +71,7 @@ verificarlo antes de prometer nada.**
 
 ### Verificación de 10 minutos, sin herramientas ni costo
 
-1. **Mirar la bornera del controlador.** Si tiene **bornes 16-17-18 rotulados `RS485`**
+1. **Mirar la bornera del controlador.** Si tiene **bornes 16 y 17 rotulados `RS485+ / −`**
    (como el XR75CH del manual del M3), **tiene ModBUS nativo y esa cámara entra directo al
    nivel 2**. Si solo está el conector **Hot Key / X-Rep**, hace falta el **XJ485-CX**
    (+USD 35-55). **Una foto de la bornera y de la etiqueta resuelve la duda.**
@@ -119,6 +119,12 @@ una con XR06CH es un FC-A. Hasta no tener ese conteo, no se puede cotizar el pro
 
 Con los puntos 1 y 2 ya se puede armar la cotización: definen cuántos FC-A, cuántas RTU y
 cuántos XJ485.
+
+## 4.1 Diagramas de bornera verificados
+
+Los diagramas reales de ambas familias, transcritos de la documentación oficial, están en
+**[doc 15](15-verificacion-borneras.md)** — junto con la advertencia sobre un esquema de
+pinout incorrecto que conviene no usar.
 
 ## 5. Fuentes
 

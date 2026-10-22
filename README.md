@@ -91,6 +91,8 @@ alimentado = cámara refrigerando.
 | [config/perfil-xr06cx-envolvente.yaml](config/perfil-xr06cx-envolvente.yaml) | **Perfil del camino A:** entradas, salidas, máquina de estados y alarmas |
 | [config/modbus-generico-rs485.yaml](config/modbus-generico-rs485.yaml) | Plantilla del camino B para controladores con ModBUS |
 | [hardware/diagrama-conexionado.md](hardware/diagrama-conexionado.md) | Diagrama de borneras y conexionado de campo |
+| **[docs/15-verificacion-borneras.md](docs/15-verificacion-borneras.md)** | **Diagramas de bornera verificados** contra los manuales oficiales, y la advertencia de no cablear con pinouts no verificados |
+| [docs/14-kit-de-conexion-rtu.md](docs/14-kit-de-conexion-rtu.md) | **Qué hace falta para conectar cada combistato a la RTU:** kits, BOM y pasos |
 | **[docs/13-inventario-controladores-cliente.md](docs/13-inventario-controladores-cliente.md)** | **Los dos modelos que el cliente tiene instalados**, qué camino le toca a cada uno y la verificación de 10 minutos |
 | [docs/manuales/](docs/manuales/) | Manual oficial del XR06CX (fuente de la rev. 3) y manual de la RTU SmartPath M3 |
 

@@ -27,7 +27,7 @@ el equipo:
 
 | Qué mirar | Resultado |
 |---|---|
-| **Bornes 16-17-18 rotulados `RS485`** en la bornera trasera | **Kit A.** ModBUS nativo, sin adaptador |
+| **Bornes 16 y 17 rotulados `RS485+ / RS485−`** en la bornera de señal | **Kit A.** ModBUS nativo, sin adaptador |
 | Solo conector **Hot Key / X-Rep**, sin bornes 16-18 | **Kit B.** Hace falta XJ485-CX |
 | **¿Existe el parámetro `Adr` en el menú?** | Si existe, es esclavo ModBUS. Si no aparece, no lo es |
 
@@ -57,9 +57,11 @@ Una foto de la bornera y una del menú de parámetros resuelven las dos pregunta
    230 Vac                           └──────────────────┘
 ```
 
-> Los bornes 16/17/18 son los que muestra el diagrama del XR75CH en el manual de la RTU.
-> **Confirmar el orden A/B/GND en la etiqueta del equipo antes de cablear**: invertir A y B no
-> rompe nada, pero no comunica, y es la causa nº 1 de "no enlaza".
+> Según el diagrama oficial del XR75CH, **borne 16 = `RS485 +` y borne 17 = `RS485 −`**
+> ([doc 15 §2](15-verificacion-borneras.md)). **Confirmar la serigrafía del equipo antes de
+> cablear:** la numeración varía entre sub-variantes del mismo modelo, y circula por ahí
+> material con pinouts incorrectos (doc 15 §3). Invertir + y − no rompe nada, pero no
+> comunica, y es la causa nº 1 de "no enlaza".
 
 **Parámetros a fijar en el controlador** (menú del frente):
 
